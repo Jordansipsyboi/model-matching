@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find Models — Model Matching</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a0a;
+    --white: #fafaf8;
+    --gray-100: #f0efe9;
+    --gray-200: #d8d6ce;
+    --gray-400: #9e9b90;
+    --gray-600: #5c5a54;
+    --accent: #c8a97e;
+    --accent-dark: #a8895e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--white);
+    color: var(--black);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.5rem 4rem;
+    background: rgba(250,250,248,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--gray-200);
+  }
+
+  .nav-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--black);
+    text-decoration: none;
+  }
+
+  .nav-right {
+    display: flex; align-items: center; gap: 2rem;
+  }
+
+  .nav-back {
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .nav-back:hover { color: var(--black); }
+
+  .nav-cta {
+    background: var(--black);
+    color: var(--white);
+    padding: 0.6rem 1.4rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+
+  .nav-cta:hover { background: var(--accent); }
+
+  /* HERO */
+  .hero {
+    padding: 10rem 4rem 4rem;
+    text-align: center;
+    position: relative;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse 60% 60% at 50% 0%, rgba(200,169,126,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.1s;
+  }
+
+  .hero-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(3rem, 6vw, 5rem);
+    font-weight: 300;
+    line-height: 1.05;
+    margin-bottom: 1rem;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.2s;
+  }
+
+  .hero-title em { font-style: italic; color: var(--accent); }
+
+  .hero-sub {
+    font-size: 0.95rem;
+    color: var(--gray-600);
+    max-width: 420px;
+    margin: 0 auto;
+    line-height: 1.7;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.3s;
+  }
+
+  /* SEARCH FORM */
+  .search-section {
+    padding: 4rem;
+    max-width: 820px;
+    margin: 0 auto;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.4s;
+  }
+
+  .search-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    padding: 3rem;
+  }
+
+  /* UPLOAD */
+  .upload-area {
+    border: 1.5px dashed var(--gray-200);
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s;
+    margin-bottom: 2rem;
+    position: relative;
+    background: var(--gray-100);
+  }
+
+  .upload-area:hover {
+    border-color: var(--accent);
+    background: rgba(200,169,126,0.04);
+  }
+
+  .upload-area.dragover {
+    border-color: var(--accent);
+    background: rgba(200,169,126,0.08);
+  }
+
+  .upload-icon {
+    width: 48px; height: 48px;
+    margin: 0 auto 1rem;
+    opacity: 0.4;
+  }
+
+  .upload-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.2rem;
+    font-weight: 400;
+    margin-bottom: 0.4rem;
+    color: var(--black);
+  }
+
+  .upload-sub {
+    font-size: 0.78rem;
+    color: var(--gray-400);
+    letter-spacing: 0.05em;
+  }
+
+  .upload-btn {
+    display: inline-block;
+    margin-top: 1rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border-bottom: 1px solid var(--accent);
+    padding-bottom: 2px;
+    cursor: pointer;
+  }
+
+  #file-input { display: none; }
+
+  .preview-img {
+    max-height: 200px;
+    max-width: 100%;
+    object-fit: contain;
+    display: none;
+    margin: 0 auto;
+    border: 1px solid var(--gray-200);
+  }
+
+  /* FILTERS ROW */
+  .filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .filter-group { display: flex; flex-direction: column; gap: 0.4rem; }
+
+  .filter-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+  }
+
+  .filter-input-wrap {
+    display: flex;
+    border: 1px solid var(--gray-200);
+    background: var(--white);
+    transition: border-color 0.2s;
+  }
+
+  .filter-input-wrap:focus-within { border-color: var(--accent); }
+
+  .filter-input-wrap select,
+  .filter-input-wrap input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 300;
+    color: var(--black);
+    padding: 0.7rem 0.9rem;
+    width: 100%;
+    cursor: pointer;
+    appearance: none;
+  }
+
+  .currency-select {
+    width: auto !important;
+    min-width: 70px;
+    border-right: 1px solid var(--gray-200) !important;
+    color: var(--accent) !important;
+    font-weight: 500 !important;
+    cursor: pointer;
+    padding-right: 0.5rem !important;
+  }
+
+  .search-btn {
+    width: 100%;
+    background: var(--black);
+    color: var(--white);
+    border: none;
+    padding: 1.1rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.25s;
+  }
+
+  .search-btn:hover { background: var(--accent); }
+
+  /* RESULTS */
+  .results-section {
+    padding: 2rem 4rem 8rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .results-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--gray-200);
+  }
+
+  .results-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    font-weight: 300;
+  }
+
+  .results-count {
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+  }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+  }
+
+  .model-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.25s;
+    position: relative;
+  }
+
+  .model-card:hover { border-color: var(--accent); }
+
+  .model-card:hover .model-overlay { opacity: 1; }
+
+  .model-img {
+    width: 100%;
+    aspect-ratio: 3/4;
+    background: var(--gray-100);
+    position: relative;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .model-img-placeholder {
+    width: 60px; height: 60px;
+    opacity: 0.15;
+  }
+
+  .model-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10,10,10,0.5);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  .model-overlay-btn {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--white);
+    border: 1px solid rgba(255,255,255,0.5);
+    padding: 0.6rem 1.2rem;
+  }
+
+  .match-badge {
+    position: absolute;
+    top: 1rem; right: 1rem;
+    background: var(--accent);
+    color: var(--white);
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    padding: 0.3rem 0.6rem;
+  }
+
+  .model-info {
+    padding: 1.2rem 1.4rem;
+    border-top: 1px solid var(--gray-200);
+  }
+
+  .model-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    font-weight: 400;
+    margin-bottom: 0.2rem;
+  }
+
+  .model-agency {
+    font-size: 0.72rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 0.8rem;
+  }
+
+  .model-meta {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  .model-rate {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--black);
+  }
+
+  .model-region {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    background: var(--gray-100);
+    padding: 0.2rem 0.6rem;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--gray-200);
+    padding: 3rem 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+  }
+
+  .footer-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--black);
+  }
+
+  .footer-links {
+    display: flex; gap: 2rem; list-style: none; flex-wrap: wrap;
+  }
+
+  .footer-links a {
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .footer-links a:hover { color: var(--black); }
+
+  .footer-copy { font-size: 0.75rem; color: var(--gray-400); }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    nav { padding: 1.2rem 1.5rem; }
+    .hero { padding: 8rem 1.5rem 3rem; }
+    .search-section { padding: 2rem 1.5rem; }
+    .search-card { padding: 1.5rem; }
+    .filters { grid-template-columns: 1fr; }
+    .results-section { padding: 2rem 1.5rem 5rem; }
+    .results-grid { grid-template-columns: repeat(2, 1fr); }
+    footer { padding: 2rem 1.5rem; flex-direction: column; align-items: flex-start; }
+  }
+
+  @media (max-width: 560px) {
+    .results-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">Model Matching</a>
+  <div class="nav-right">
+    <a href="index.html" class="nav-back">← Back</a>
+    <a href="list-models.html" class="nav-cta">List Your Models</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <p class="hero-eyebrow">AI-Powered Search</p>
+  <h1 class="hero-title">Find your <em>perfect match.</em></h1>
+  <p class="hero-sub">Upload a reference photo, set your budget, and let our AI find the closest matches from our verified model database.</p>
+</section>
+
+<!-- SEARCH FORM -->
+<section class="search-section">
+  <div class="search-card">
+
+    <!-- Upload -->
+    <div class="upload-area" id="upload-area">
+      <svg class="upload-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="4" width="40" height="40" rx="2" stroke="#0a0a0a" stroke-width="1.5"/>
+        <circle cx="16" cy="18" r="4" stroke="#0a0a0a" stroke-width="1.5"/>
+        <path d="M4 34L14 24L20 30L30 20L44 34" stroke="#0a0a0a" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+      <img class="preview-img" id="preview-img" alt="Preview"/>
+      <p class="upload-title">Upload reference photo</p>
+      <p class="upload-sub">Drag & drop or click to browse · JPG, PNG, WEBP</p>
+      <span class="upload-btn">Choose file</span>
+      <input type="file" id="file-input" accept="image/*">
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+      <div class="filter-group">
+        <label class="filter-label">Budget</label>
+        <div class="filter-input-wrap">
+          <select class="currency-select" id="currency">
+            <option>USD</option>
+            <option>KRW</option>
+            <option>CNY</option>
+            <option>JPY</option>
+          </select>
+          <input type="number" placeholder="e.g. 5,000" id="budget">
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">Region</label>
+        <div class="filter-input-wrap">
+          <select id="region">
+            <option value="">All Regions</option>
+            <option>East Asia</option>
+            <option>Korea</option>
+            <option>China</option>
+            <option>Japan</option>
+            <option>Southeast Asia</option>
+            <option>Europe</option>
+            <option>Global</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">Gender</label>
+        <div class="filter-input-wrap">
+          <select id="gender">
+            <option>All</option>
+            <option>Female</option>
+            <option>Male</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <button class="search-btn" onclick="showResults()">Find Matches</button>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section class="results-section" id="results" style="display:none">
+  <div class="results-header">
+    <h2 class="results-title">Matching models</h2>
+    <span class="results-count">6 results found</span>
+  </div>
+
+  <div class="results-grid">
+
+    <div class="model-card">
+      <div class="model-img">
+        <img src="https://randomuser.me/api/portraits/women/44.jpg" style="width:100%;height:100%;object-fit:cover;display:block;">
+        <div class="model-overlay"><span class="model-overlay-btn">View Profile</span></div>
+        <div class="match-badge">98% match</div>
+      </div>
+      <div class="model-info">
+        <p class="model-name">Ji Yeon Park</p>
+        <p class="model-agency">ESTEEM Models · Seoul</p>
+        <div class="model-meta">
+          <span class="model-rate">$3,200 / day</span>
+          <span class="model-region">Korea</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="model-img">
+        <img src="https://randomuser.me/api/portraits/women/68.jpg" style="width:100%;height:100%;object-fit:cover;display:block;">
+        <div class="model-overlay"><span class="model-overlay-btn">View Profile</span></div>
+        <div class="match-badge">95% match</div>
+      </div>
+      <div class="model-info">
+        <p class="model-name">Meilin Zhang</p>
+        <p class="model-agency">IMG Models · Shanghai</p>
+        <div class="model-meta">
+          <span class="model-rate">$4,800 / day</span>
+          <span class="model-region">China</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="model-img">
+        <img src="https://randomuser.me/api/portraits/women/90.jpg" style="width:100%;height:100%;object-fit:cover;display:block;">
+        <div class="model-overlay"><span class="model-overlay-btn">View Profile</span></div>
+        <div class="match-badge">91% match</div>
+      </div>
+      <div class="model-info">
+        <p class="model-name">Yuna Ishikawa</p>
+        <p class="model-agency">Satoru Japan · Tokyo</p>
+        <div class="model-meta">
+          <span class="model-rate">$2,900 / day</span>
+          <span class="model-region">Japan</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="model-img">
+        <img src="https://randomuser.me/api/portraits/women/12.jpg" style="width:100%;height:100%;object-fit:cover;display:block;">
+        <div class="model-overlay"><span class="model-overlay-btn">View Profile</span></div>
+        <div class="match-badge">88% match</div>
+      </div>
+      <div class="model-info">
+        <p class="model-name">Seo Hyun Lim</p>
+        <p class="model-agency">YG Plus · Seoul</p>
+        <div class="model-meta">
+          <span class="model-rate">$2,100 / day</span>
+          <span class="model-region">Korea</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="model-img">
+        <img src="https://randomuser.me/api/portraits/women/26.jpg" style="width:100%;height:100%;object-fit:cover;display:block;">
+        <div class="model-overlay"><span class="model-overlay-btn">View Profile</span></div>
+        <div class="match-badge">85% match</div>
+      </div>
+      <div class="model-info">
+        <p class="model-name">Xiao Wen Ju</p>
+        <p class="model-agency">Next Models · Beijing</p>
+        <div class="model-meta">
+          <span class="model-rate">$3,600 / day</span>
+          <span class="model-region">China</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="model-img">
+        <img src="https://randomuser.me/api/portraits/women/55.jpg" style="width:100%;height:100%;object-fit:cover;display:block;">
+        <div class="model-overlay"><span class="model-overlay-btn">View Profile</span></div>
+        <div class="match-badge">82% match</div>
+      </div>
+      <div class="model-info">
+        <p class="model-name">Aiko Tanaka</p>
+        <p class="model-agency">Donna Models · Tokyo</p>
+        <div class="model-meta">
+          <span class="model-rate">$1,800 / day</span>
+          <span class="model-region">Japan</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Model Matching</div>
+  <ul class="footer-links">
+    <li><a href="#">How it works</a></li>
+    <li><a href="#">For agencies</a></li>
+    <li><a href="#">For brands</a></li>
+    <li><a href="#">Contact</a></li>
+    <li><a href="#">Terms</a></li>
+  </ul>
+  <p class="footer-copy">© 2025 Model Matching</p>
+</footer>
+
+<script>
+  const uploadArea = document.getElementById('upload-area');
+  const fileInput = document.getElementById('file-input');
+  const previewImg = document.getElementById('preview-img');
+
+  uploadArea.addEventListener('click', () => fileInput.click());
+
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+  });
+
+  uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+  });
+
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) handleFile(file);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) handleFile(fileInput.files[0]);
+  });
+
+  function handleFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previewImg.src = e.target.result;
+      previewImg.style.display = 'block';
+      uploadArea.querySelector('.upload-icon').style.display = 'none';
+      uploadArea.querySelector('.upload-title').textContent = 'Photo uploaded';
+      uploadArea.querySelector('.upload-sub').textContent = file.name;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function showResults() {
+    const results = document.getElementById('results');
+    results.style.display = 'block';
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+</script>
+
+</body>
+</html>
