@@ -16,11 +16,11 @@
     --accent: #c8a97e;
     --accent-dark: #a8895e;
   }
-
+ 
   * { margin: 0; padding: 0; box-sizing: border-box; }
-
+ 
   html { scroll-behavior: smooth; }
-
+ 
   body {
     background: var(--white);
     color: var(--black);
@@ -28,7 +28,7 @@
     font-weight: 300;
     overflow-x: hidden;
   }
-
+ 
   /* NAV */
   nav {
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
@@ -38,7 +38,7 @@
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--gray-200);
   }
-
+ 
   .nav-logo {
     font-family: 'Cormorant Garamond', serif;
     font-size: 1.3rem;
@@ -48,12 +48,12 @@
     color: var(--black);
     text-decoration: none;
   }
-
+ 
   .nav-links {
     display: flex; align-items: center; gap: 2.5rem;
     list-style: none;
   }
-
+ 
   .nav-links a {
     font-size: 0.8rem;
     letter-spacing: 0.12em;
@@ -62,9 +62,9 @@
     text-decoration: none;
     transition: color 0.2s;
   }
-
+ 
   .nav-links a:hover { color: var(--black); }
-
+ 
   .nav-cta {
     background: var(--black) !important;
     color: var(--white) !important;
@@ -73,9 +73,9 @@
     letter-spacing: 0.12em;
     transition: background 0.2s !important;
   }
-
+ 
   .nav-cta:hover { background: var(--accent-dark) !important; color: var(--white) !important; }
-
+ 
   /* HERO */
   .hero {
     min-height: 100vh;
@@ -86,7 +86,7 @@
     position: relative;
     overflow: hidden;
   }
-
+ 
   .hero::before {
     content: '';
     position: absolute;
@@ -96,7 +96,7 @@
       radial-gradient(ellipse 50% 50% at 80% 20%, rgba(200,169,126,0.06) 0%, transparent 70%);
     pointer-events: none;
   }
-
+ 
   .hero-eyebrow {
     font-size: 0.7rem;
     letter-spacing: 0.25em;
@@ -106,7 +106,7 @@
     opacity: 0;
     animation: fadeUp 0.8s ease forwards 0.2s;
   }
-
+ 
   .hero-title {
     font-family: 'Cormorant Garamond', serif;
     font-size: clamp(3.5rem, 8vw, 7rem);
@@ -118,12 +118,12 @@
     opacity: 0;
     animation: fadeUp 0.8s ease forwards 0.4s;
   }
-
+ 
   .hero-title em {
     font-style: italic;
     color: var(--accent);
   }
-
+ 
   .hero-sub {
     font-size: 1rem;
     color: var(--gray-600);
@@ -133,13 +133,13 @@
     opacity: 0;
     animation: fadeUp 0.8s ease forwards 0.6s;
   }
-
+ 
   .hero-buttons {
     display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
     opacity: 0;
     animation: fadeUp 0.8s ease forwards 0.8s;
   }
-
+ 
   .btn-primary {
     background: var(--black);
     color: var(--white);
@@ -154,12 +154,12 @@
     transition: all 0.25s;
     cursor: pointer;
   }
-
+ 
   .btn-primary:hover {
     background: var(--accent);
     border-color: var(--accent);
   }
-
+ 
   .btn-secondary {
     background: transparent;
     color: var(--black);
@@ -174,11 +174,11 @@
     transition: all 0.25s;
     cursor: pointer;
   }
-
+ 
   .btn-secondary:hover {
     border-color: var(--black);
   }
-
+ 
   .hero-scroll {
     position: absolute;
     bottom: 2.5rem;
@@ -188,20 +188,20 @@
     opacity: 0;
     animation: fadeUp 0.8s ease forwards 1.2s;
   }
-
+ 
   .hero-scroll span {
     font-size: 0.65rem;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--gray-400);
   }
-
+ 
   .scroll-line {
     width: 1px; height: 40px;
     background: linear-gradient(to bottom, var(--gray-400), transparent);
     animation: scrollPulse 2s ease infinite;
   }
-
+ 
   /* MARQUEE */
   .marquee-wrap {
     border-top: 1px solid var(--gray-200);
@@ -210,13 +210,13 @@
     overflow: hidden;
     background: var(--gray-100);
   }
-
+ 
   .marquee-track {
     display: flex; gap: 4rem;
     animation: marquee 20s linear infinite;
     white-space: nowrap;
   }
-
+ 
   .marquee-item {
     font-size: 0.65rem;
     letter-spacing: 0.2em;
@@ -224,23 +224,24 @@
     color: var(--gray-400);
     flex-shrink: 0;
   }
-
+ 
   .marquee-dot {
     color: var(--accent);
     margin-right: 4rem;
   }
-
+ 
   /* PROBLEM SECTION */
   .problem {
     padding: 8rem 4rem;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6rem;
+    grid-template-columns: 1fr;
+    gap: 3rem;
     align-items: center;
-    max-width: 1200px;
+    max-width: 800px;
     margin: 0 auto;
+    text-align: center;
   }
-
+ 
   .problem-label {
     font-size: 0.65rem;
     letter-spacing: 0.25em;
@@ -248,7 +249,7 @@
     color: var(--accent);
     margin-bottom: 1.5rem;
   }
-
+ 
   .problem-title {
     font-family: 'Cormorant Garamond', serif;
     font-size: clamp(2.2rem, 4vw, 3.5rem);
@@ -256,16 +257,16 @@
     line-height: 1.15;
     margin-bottom: 2rem;
   }
-
+ 
   .problem-title em { font-style: italic; color: var(--accent); }
-
+ 
   .problem-text {
     font-size: 0.95rem;
     color: var(--gray-600);
     line-height: 1.8;
     margin-bottom: 1.5rem;
   }
-
+ 
   .problem-card {
     background: var(--black);
     color: var(--white);
@@ -273,7 +274,7 @@
     position: relative;
     overflow: hidden;
   }
-
+ 
   .problem-card::before {
     content: '';
     position: absolute;
@@ -281,7 +282,7 @@
     width: 200px; height: 200px;
     background: radial-gradient(circle, rgba(200,169,126,0.15) 0%, transparent 70%);
   }
-
+ 
   .problem-card-label {
     font-size: 0.6rem;
     letter-spacing: 0.25em;
@@ -289,7 +290,7 @@
     color: var(--accent);
     margin-bottom: 2rem;
   }
-
+ 
   .problem-stat {
     font-family: 'Cormorant Garamond', serif;
     font-size: 4rem;
@@ -298,7 +299,7 @@
     margin-bottom: 0.5rem;
     color: var(--white);
   }
-
+ 
   .problem-stat-label {
     font-size: 0.8rem;
     color: rgba(255,255,255,0.5);
@@ -306,7 +307,7 @@
     padding-bottom: 2rem;
     border-bottom: 1px solid rgba(255,255,255,0.1);
   }
-
+ 
   .problem-quote {
     font-family: 'Cormorant Garamond', serif;
     font-size: 1.1rem;
@@ -314,25 +315,25 @@
     color: rgba(255,255,255,0.7);
     line-height: 1.6;
   }
-
+ 
   /* HOW IT WORKS */
   .how {
     padding: 8rem 4rem;
     background: var(--gray-100);
   }
-
+ 
   .how-inner {
     max-width: 1200px;
     margin: 0 auto;
   }
-
+ 
   .how-header {
     display: flex; align-items: flex-end; justify-content: space-between;
     margin-bottom: 5rem;
     gap: 2rem;
     flex-wrap: wrap;
   }
-
+ 
   .how-label {
     font-size: 0.65rem;
     letter-spacing: 0.25em;
@@ -340,14 +341,14 @@
     color: var(--accent);
     margin-bottom: 1rem;
   }
-
+ 
   .how-title {
     font-family: 'Cormorant Garamond', serif;
     font-size: clamp(2rem, 4vw, 3rem);
     font-weight: 300;
     line-height: 1.2;
   }
-
+ 
   .how-sub {
     font-size: 0.9rem;
     color: var(--gray-600);
@@ -355,26 +356,26 @@
     line-height: 1.7;
     text-align: right;
   }
-
+ 
   .steps {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 2px;
   }
-
+ 
   .step {
     background: var(--white);
     padding: 3rem 2.5rem;
     position: relative;
     transition: background 0.3s;
   }
-
+ 
   .step:hover { background: var(--black); }
   .step:hover .step-num { color: var(--accent); }
   .step:hover .step-title { color: var(--white); }
   .step:hover .step-text { color: rgba(255,255,255,0.5); }
   .step:hover .step-line { background: var(--accent); }
-
+ 
   .step-num {
     font-family: 'Cormorant Garamond', serif;
     font-size: 0.9rem;
@@ -382,14 +383,14 @@
     margin-bottom: 2rem;
     transition: color 0.3s;
   }
-
+ 
   .step-line {
     width: 32px; height: 1px;
     background: var(--gray-200);
     margin-bottom: 1.5rem;
     transition: background 0.3s;
   }
-
+ 
   .step-title {
     font-family: 'Cormorant Garamond', serif;
     font-size: 1.5rem;
@@ -398,14 +399,14 @@
     line-height: 1.2;
     transition: color 0.3s;
   }
-
+ 
   .step-text {
     font-size: 0.85rem;
     color: var(--gray-600);
     line-height: 1.7;
     transition: color 0.3s;
   }
-
+ 
   /* CTA SECTION */
   .cta-section {
     padding: 8rem 4rem;
@@ -413,7 +414,7 @@
     max-width: 800px;
     margin: 0 auto;
   }
-
+ 
   .cta-label {
     font-size: 0.65rem;
     letter-spacing: 0.25em;
@@ -421,7 +422,7 @@
     color: var(--accent);
     margin-bottom: 1.5rem;
   }
-
+ 
   .cta-title {
     font-family: 'Cormorant Garamond', serif;
     font-size: clamp(2.5rem, 5vw, 4rem);
@@ -429,20 +430,20 @@
     line-height: 1.1;
     margin-bottom: 1.5rem;
   }
-
+ 
   .cta-title em { font-style: italic; color: var(--accent); }
-
+ 
   .cta-text {
     font-size: 0.95rem;
     color: var(--gray-600);
     line-height: 1.8;
     margin-bottom: 3rem;
   }
-
+ 
   .cta-buttons {
     display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
   }
-
+ 
   /* FOOTER */
   footer {
     border-top: 1px solid var(--gray-200);
@@ -453,7 +454,7 @@
     flex-wrap: wrap;
     gap: 1.5rem;
   }
-
+ 
   .footer-logo {
     font-family: 'Cormorant Garamond', serif;
     font-size: 1.1rem;
@@ -462,11 +463,11 @@
     text-transform: uppercase;
     color: var(--black);
   }
-
+ 
   .footer-links {
     display: flex; gap: 2rem; list-style: none; flex-wrap: wrap;
   }
-
+ 
   .footer-links a {
     font-size: 0.75rem;
     letter-spacing: 0.1em;
@@ -475,30 +476,30 @@
     text-decoration: none;
     transition: color 0.2s;
   }
-
+ 
   .footer-links a:hover { color: var(--black); }
-
+ 
   .footer-copy {
     font-size: 0.75rem;
     color: var(--gray-400);
   }
-
+ 
   /* ANIMATIONS */
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
   }
-
+ 
   @keyframes marquee {
     from { transform: translateX(0); }
     to { transform: translateX(-50%); }
   }
-
+ 
   @keyframes scrollPulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.3; }
   }
-
+ 
   /* RESPONSIVE */
   @media (max-width: 900px) {
     nav { padding: 1.2rem 1.5rem; }
@@ -514,7 +515,7 @@
 </style>
 </head>
 <body>
-
+ 
 <!-- NAV -->
 <nav>
   <a href="#" class="nav-logo">Model Matching</a>
@@ -524,14 +525,14 @@
     <li><a href="#cta" class="nav-cta">Get started</a></li>
   </ul>
 </nav>
-
+ 
 <!-- HERO -->
 <section class="hero">
   <p class="hero-eyebrow">AI-Powered Casting Platform</p>
   <h1 class="hero-title">Find the <em>right face.</em><br>Within your budget.</h1>
   <p class="hero-sub">Upload a reference photo, set your budget, and instantly discover models who match your vision — without the endless back-and-forth.</p>
   <div class="hero-buttons">
-    <a href="#" class="btn-primary">Find Models</a>
+    <a href="find-models.html" class="btn-primary">Find Models</a>
     <a href="#" class="btn-secondary">List Your Models</a>
   </div>
   <div class="hero-scroll">
@@ -539,46 +540,46 @@
     <span>Scroll</span>
   </div>
 </section>
-
+ 
 <!-- MARQUEE -->
 <div class="marquee-wrap">
   <div class="marquee-track">
-    <span class="marquee-item">SK-II</span>
+    <span class="marquee-item">Visual AI Matching</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">Dior</span>
+    <span class="marquee-item">Budget-First Casting</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">Tom Ford</span>
+    <span class="marquee-item">Agency Verified</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">KFC</span>
+    <span class="marquee-item">Commercial Models</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">OPPO</span>
+    <span class="marquee-item">Editorial Casting</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">AI Matching</span>
+    <span class="marquee-item">Reference Photo Search</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">Budget Casting</span>
+    <span class="marquee-item">Global Talent Pool</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">Global Agencies</span>
+    <span class="marquee-item">Instant Shortlists</span>
     <span class="marquee-item marquee-dot">·</span>
     <!-- duplicate for seamless loop -->
-    <span class="marquee-item">SK-II</span>
+    <span class="marquee-item">Visual AI Matching</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">Dior</span>
+    <span class="marquee-item">Budget-First Casting</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">Tom Ford</span>
+    <span class="marquee-item">Agency Verified</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">KFC</span>
+    <span class="marquee-item">Commercial Models</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">OPPO</span>
+    <span class="marquee-item">Editorial Casting</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">AI Matching</span>
+    <span class="marquee-item">Reference Photo Search</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">Budget Casting</span>
+    <span class="marquee-item">Global Talent Pool</span>
     <span class="marquee-item marquee-dot">·</span>
-    <span class="marquee-item">Global Agencies</span>
+    <span class="marquee-item">Instant Shortlists</span>
     <span class="marquee-item marquee-dot">·</span>
   </div>
 </div>
-
+ 
 <!-- PROBLEM / SOLUTION -->
 <section class="problem" id="problem">
   <div>
@@ -587,16 +588,8 @@
     <p class="problem-text">Agencies spend days manually searching through model portfolios, only to find the perfect face is double the client's budget. The process is slow, expensive, and frustrating.</p>
     <p class="problem-text">Model Matching solves this instantly. Upload a reference photo, set your budget, and our AI surfaces the best visual matches from a curated database of agency-verified models — in seconds.</p>
   </div>
-  <div class="problem-card">
-    <p class="problem-card-label">Real scenario</p>
-    <div class="problem-stat">¥200k</div>
-    <p class="problem-stat-label">The model the client wanted</p>
-    <div class="problem-stat">¥100k</div>
-    <p class="problem-stat-label">The actual budget available</p>
-    <p class="problem-quote">"We needed to find someone with the same look, at half the price. There was no efficient way to do that — until now."</p>
-  </div>
 </section>
-
+ 
 <!-- HOW IT WORKS -->
 <section class="how" id="how">
   <div class="how-inner">
@@ -629,18 +622,18 @@
     </div>
   </div>
 </section>
-
+ 
 <!-- CTA -->
 <section class="cta-section" id="cta">
   <p class="cta-label">Get Started</p>
   <h2 class="cta-title">Ready to cast <em>smarter?</em></h2>
   <p class="cta-text">Join agencies and brands who are saving time and budget on every casting. List your models for free, or start searching today.</p>
   <div class="cta-buttons">
-    <a href="#" class="btn-primary">Find Models</a>
+    <a href="find-models.html" class="btn-primary">Find Models</a>
     <a href="#" class="btn-secondary">List Your Models</a>
   </div>
 </section>
-
+ 
 <!-- FOOTER -->
 <footer>
   <div class="footer-logo">Model Matching</div>
@@ -653,6 +646,6 @@
   </ul>
   <p class="footer-copy">© 2025 Model Matching</p>
 </footer>
-
+ 
 </body>
 </html>
