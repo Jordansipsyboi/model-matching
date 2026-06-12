@@ -80,6 +80,34 @@ def admin():
     return render_template("admin.html", agencies=agencies, models=models)
 
 
+@app.route("/admin/crawl/<int:agency_id>", methods=["POST"])
+def admin_crawl(agency_id):
+    if not session.get("admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    import asyncio
+    from crawler import crawl_agency
+
+    conn = database.get_connection()
+    row = conn.execute("SELECT * FROM agencies WHERE id = ?", (agency_id,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({"error": "Agency not found"}), 404
+
+    agency = dict(row)
+
+    def do_crawl():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(crawl_agency(agency))
+        loop.close()
+
+    t = threading.Thread(target=do_crawl, daemon=True)
+    t.start()
+    return jsonify({"status": "ok", "message": f"Crawling {agency['agency_name']}..."})
+
+
+
 # ── Nightly scheduler ──────────────────────────────────────────
 
 def run_nightly_crawl():

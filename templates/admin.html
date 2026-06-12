@@ -41,6 +41,8 @@ td { padding: 10px 16px; vertical-align: middle; }
 .ext-link { color: #000; text-decoration: none; border-bottom: 1px solid #d0d0d0; font-size: 11px; }
 .ext-link:hover { border-bottom-color: #000; }
 .missing { color: #ccc; }
+.crawl-btn { background: #000; color: #fff; border: none; padding: 5px 12px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; }
+.crawl-btn:disabled { background: #888; cursor: default; }
 </style>
 </head>
 <body>
@@ -75,6 +77,7 @@ td { padding: 10px 16px; vertical-align: middle; }
         <th>Models</th>
         <th>Last Crawled</th>
         <th>Submitted</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -94,6 +97,7 @@ td { padding: 10px 16px; vertical-align: middle; }
           {% endif %}
         </td>
         <td class="missing">{{ a.submitted_at[:10] if a.submitted_at else '—' }}</td>
+        <td><button class="crawl-btn" onclick="crawlAgency({{ a.id }}, this)">Sync Now</button></td>
       </tr>
       {% else %}
       <tr><td colspan="8" style="padding:3rem;text-align:center;color:#888;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;">No agencies registered yet</td></tr>
@@ -158,6 +162,18 @@ function switchTab(name, el) {
   el.classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
   document.getElementById('q').value = '';
+}
+
+function crawlAgency(id, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Syncing...';
+  fetch(`/admin/crawl/${id}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(() => {
+      btn.textContent = 'Running...';
+      setTimeout(() => { btn.textContent = 'Done ✓'; }, 3000);
+    })
+    .catch(() => { btn.textContent = 'Error'; });
 }
 
 function filterTable() {
