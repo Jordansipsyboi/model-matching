@@ -93,8 +93,8 @@ async def fetch_page_html(url: str) -> tuple[str, list, list]:
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         try:
-            await page.goto(url, wait_until="domcontentloaded", timeout=45000)
-            await page.wait_for_timeout(4000)
+            await page.goto(url, wait_until="networkidle", timeout=60000)
+            await page.wait_for_timeout(8000)
             html = await page.content()
 
             base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
