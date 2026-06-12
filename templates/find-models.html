@@ -262,7 +262,7 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
 
     <!-- WORK TYPE -->
     <div class="filter-section">
-      <span class="filter-label required">Work Type</span>
+      <span class="filter-label">Work Type</span>
       <div class="chips" id="workTypeChips">
         <div class="chip" data-value="runway">Runway</div>
         <div class="chip" data-value="editorial">Editorial</div>
@@ -277,7 +277,7 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
 
     <!-- LOOK / VIBE -->
     <div class="filter-section">
-      <span class="filter-label required">Look / Vibe</span>
+      <span class="filter-label">Look / Vibe</span>
       <div class="chips" id="lookChips">
         <div class="chip" data-value="clean">Clean</div>
         <div class="chip" data-value="edgy">Edgy</div>
@@ -570,11 +570,6 @@ function validateRequiredFields() {
   if (!photoInput.files.length) {
     setErrorState(document.getElementById("uploadZone"));
     missingFields.push("reference photo");
-  }
-
-  if (!activeWorkTypes.length) {
-    setErrorState(document.getElementById("workTypeChips"));
-    missingFields.push("work type");
   }
 
   if (missingFields.length) {
