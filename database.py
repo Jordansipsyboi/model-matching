@@ -66,14 +66,15 @@ def init_db():
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS agencies (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            agency_name   TEXT NOT NULL,
-            agency_website TEXT NOT NULL,
-            contact_name  TEXT NOT NULL,
-            contact_email TEXT NOT NULL,
-            market        TEXT NOT NULL,
-            notes         TEXT,
-            submitted_at  TEXT DEFAULT (datetime('now'))
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            agency_name     TEXT NOT NULL,
+            agency_website  TEXT NOT NULL,
+            contact_name    TEXT NOT NULL,
+            contact_email   TEXT NOT NULL,
+            market          TEXT NOT NULL,
+            notes           TEXT,
+            submitted_at    TEXT DEFAULT (datetime('now')),
+            last_crawled_at TEXT DEFAULT NULL
         )
         """
     )
