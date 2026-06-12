@@ -106,33 +106,44 @@ async def fetch_page_html(url: str) -> tuple[str, list]:
     return html, roster_urls
 
 
-def extract_models_with_ai(html: str, agency_name: str, url: str) -> list:
-    # Trim HTML to avoid token limits — keep first 80k chars
-    trimmed = html[:80000] if len(html) > 80000 else html
-
+def call_ai(html_chunk: str, agency_name: str, url: str) -> list:
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=8096,
         messages=[
             {
                 "role": "user",
-                "content": f"Agency: {agency_name}\nURL: {url}\n\nHTML:\n{trimmed}\n\n{EXTRACT_PROMPT}"
+                "content": f"Agency: {agency_name}\nURL: {url}\n\nHTML:\n{html_chunk}\n\n{EXTRACT_PROMPT}"
             }
         ]
     )
-
     raw = message.content[0].text.strip()
-    # Strip markdown code fences if present
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
     try:
         return json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(f"  AI returned invalid JSON: {e}")
-        print(f"  Raw output: {raw[:500]}")
+    except json.JSONDecodeError:
         return []
+
+
+def extract_models_with_ai(html: str, agency_name: str, url: str) -> list:
+    # Split into 40k char chunks so output never gets cut off
+    chunk_size = 40000
+    chunks = [html[i:i+chunk_size] for i in range(0, min(len(html), 160000), chunk_size)]
+    all_models = []
+    seen_names = set()
+    for i, chunk in enumerate(chunks):
+        if len(chunks) > 1:
+            print(f"    Chunk {i+1}/{len(chunks)}...")
+        models = call_ai(chunk, agency_name, url)
+        for m in models:
+            name = m.get("english", "").strip()
+            if name and name not in seen_names:
+                seen_names.add(name)
+                all_models.append(m)
+    return all_models
 
 
 def save_crawled_models(models: list, agency_name: str):
