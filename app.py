@@ -19,6 +19,11 @@ def find_models():
     return render_template("find-models.html")
 
 
+@app.route("/admin")
+def admin():
+    return render_template("admin.html")
+
+
 @app.route("/list-models")
 def list_models():
     return render_template("list-models.html")

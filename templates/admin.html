@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Model Matching</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafaf8; font-family: 'DM Sans', sans-serif; font-size: 13px; }
+header { padding: 20px 32px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 16px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; }
+#stats { color: #666; font-size: 12px; }
+#search-bar { padding: 16px 32px; border-bottom: 1px solid #1a1a1a; }
+#search-bar input {
+  width: 320px; background: #161616; border: 1px solid #2a2a2a; color: #fafaf8;
+  padding: 8px 14px; border-radius: 4px; font-size: 13px; outline: none;
+}
+#search-bar input:focus { border-color: #c8a97e; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  text-align: left; padding: 10px 16px; font-size: 11px; font-weight: 500;
+  letter-spacing: 1px; text-transform: uppercase; color: #666;
+  border-bottom: 1px solid #1a1a1a; position: sticky; top: 0; background: #0a0a0a;
+}
+tbody tr { border-bottom: 1px solid #111; transition: background 0.1s; }
+tbody tr:hover { background: #111; }
+td { padding: 10px 16px; vertical-align: middle; }
+.photo { width: 44px; height: 56px; object-fit: cover; border-radius: 3px; background: #1a1a1a; display: block; }
+.no-photo { width: 44px; height: 56px; background: #1a1a1a; border-radius: 3px; display: flex; align-items: center; justify-content: center; color: #333; font-size: 18px; }
+.name { font-weight: 500; }
+.korean { color: #666; font-size: 12px; }
+.agency-tag { background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 20px; font-size: 11px; color: #888; }
+.missing { color: #444; }
+.has-data { color: #fafaf8; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Model Matching — Admin</h1>
+  <span id="stats">Loading...</span>
+</header>
+<div id="search-bar">
+  <input type="text" id="q" placeholder="Search by name, agency, gender..." oninput="render()">
+</div>
+<div style="overflow-x:auto">
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Name</th>
+      <th>Gender</th>
+      <th>Height</th>
+      <th>Chest</th>
+      <th>Waist</th>
+      <th>Hips</th>
+      <th>Shoes</th>
+      <th>Hair</th>
+      <th>Eyes</th>
+      <th>Agency</th>
+      <th>Profile</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+
+<script>
+let ALL = [];
+
+fetch('/api/models').then(r => r.json()).then(data => {
+  ALL = data;
+  document.getElementById('stats').textContent = `${data.length} models`;
+  render();
+});
+
+function render() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const rows = ALL.filter(m => {
+    if (!q) return true;
+    return (m.english||'').toLowerCase().includes(q) ||
+           (m.korean||'').toLowerCase().includes(q) ||
+           (m.agency_name||'').toLowerCase().includes(q) ||
+           (m.gender||'').toLowerCase().includes(q);
+  });
+
+  document.getElementById('stats').textContent = `${rows.length} / ${ALL.length} models`;
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = rows.map(m => `
+    <tr>
+      <td>${m.photo_url
+        ? `<img class="photo" src="${m.photo_url}" onerror="this.parentNode.innerHTML='<div class=\\'no-photo\\'>?</div>'">`
+        : '<div class="no-photo">?</div>'}</td>
+      <td>
+        <div class="name">${m.english || '—'}</div>
+        ${m.korean ? `<div class="korean">${m.korean}</div>` : ''}
+      </td>
+      <td class="${m.gender ? 'has-data' : 'missing'}">${m.gender || '—'}</td>
+      <td class="${m.height ? 'has-data' : 'missing'}">${m.height ? m.height + ' cm' : '—'}</td>
+      <td class="${m.chest ? 'has-data' : 'missing'}">${m.chest || '—'}</td>
+      <td class="${m.waist ? 'has-data' : 'missing'}">${m.waist || '—'}</td>
+      <td class="${m.hips ? 'has-data' : 'missing'}">${m.hips || '—'}</td>
+      <td class="${m.shoes ? 'has-data' : 'missing'}">${m.shoes || '—'}</td>
+      <td class="${m.hair_color ? 'has-data' : 'missing'}">${[m.hair_length, m.hair_color].filter(Boolean).join(' ') || '—'}</td>
+      <td class="${m.eye_color ? 'has-data' : 'missing'}">${m.eye_color || '—'}</td>
+      <td>${m.agency_name ? `<span class="agency-tag">${m.agency_name}</span>` : '<span class="missing">—</span>'}</td>
+      <td>${m.profile_url ? `<a href="${m.profile_url}" target="_blank" style="color:#c8a97e;text-decoration:none">↗</a>` : '<span class="missing">—</span>'}</td>
+    </tr>
+  `).join('');
+}
+</script>
+</body>
+</html>
