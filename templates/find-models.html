@@ -765,19 +765,11 @@ function openModal(id) {
   document.getElementById("modalTags").innerHTML = m.workTypes.map(t => `<span class="modal-tag">${t}</span>`).join("");
   document.getElementById("modalLooks").innerHTML = m.looks.map(l => `<span class="modal-tag">${l}</span>`).join("");
 
-  // Request Booking button
+  // Request Booking button — always emails Model Matching (you)
   const btn = document.querySelector(".modal-contact");
   const subject = encodeURIComponent(`Booking Inquiry — ${m.english}`);
-  const body = encodeURIComponent(`Hi,\n\nI found ${m.english} on Model Matching and would like to inquire about booking availability.\n\nPlease let me know rates and availability.\n\nThank you.`);
-  if (m.agency_email) {
-    btn.href = `mailto:${m.agency_email}?subject=${subject}&body=${body}`;
-  } else if (m.profile_url) {
-    btn.href = m.profile_url;
-  } else if (m.agency_website_url) {
-    btn.href = m.agency_website_url;
-  } else {
-    btn.href = "#";
-  }
+  const body = encodeURIComponent(`Hi,\n\nI would like to book ${m.english} (${m.agency_name || 'Independent'}).\n\nPlease get back to me with availability and rates.\n\nThank you.`);
+  btn.href = `mailto:eden137925@gmail.com?subject=${subject}&body=${body}`;
   btn.style.display = "block";
 
   document.getElementById("modalBg").classList.add("open");
