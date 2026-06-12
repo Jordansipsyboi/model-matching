@@ -4,110 +4,168 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — Model Matching</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #0a0a0a; color: #fafaf8; font-family: 'DM Sans', sans-serif; font-size: 13px; }
-header { padding: 20px 32px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
-header h1 { font-size: 16px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; }
-#stats { color: #666; font-size: 12px; }
-#search-bar { padding: 16px 32px; border-bottom: 1px solid #1a1a1a; }
-#search-bar input {
-  width: 320px; background: #161616; border: 1px solid #2a2a2a; color: #fafaf8;
-  padding: 8px 14px; border-radius: 4px; font-size: 13px; outline: none;
-}
-#search-bar input:focus { border-color: #c8a97e; }
+body { background: #fff; color: #000; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 13px; }
+header { padding: 20px 40px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; font-weight: 400; }
+.header-right { display: flex; align-items: center; gap: 2rem; }
+.header-right span { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: #888; }
+.logout { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: #000; text-decoration: none; border-bottom: 1px solid #000; padding-bottom: 1px; }
+
+/* Tabs */
+.tabs { display: flex; border-bottom: 1px solid #e0e0e0; padding: 0 40px; }
+.tab { padding: 14px 0; margin-right: 32px; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; border-bottom: 2px solid transparent; color: #888; }
+.tab.active { color: #000; border-bottom-color: #000; }
+
+/* Search */
+.toolbar { padding: 16px 40px; border-bottom: 1px solid #f0f0f0; }
+.toolbar input { width: 300px; border: none; border-bottom: 1px solid #d0d0d0; padding: 6px 0; font-size: 12px; font-family: inherit; outline: none; }
+.toolbar input:focus { border-bottom-color: #000; }
+
+/* Tables */
+.panel { display: none; }
+.panel.active { display: block; }
 table { width: 100%; border-collapse: collapse; }
-thead th {
-  text-align: left; padding: 10px 16px; font-size: 11px; font-weight: 500;
-  letter-spacing: 1px; text-transform: uppercase; color: #666;
-  border-bottom: 1px solid #1a1a1a; position: sticky; top: 0; background: #0a0a0a;
-}
-tbody tr { border-bottom: 1px solid #111; transition: background 0.1s; }
-tbody tr:hover { background: #111; }
+thead th { text-align: left; padding: 10px 16px; font-size: 0.6rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: #888; border-bottom: 1px solid #e0e0e0; position: sticky; top: 0; background: #fff; }
+tbody tr { border-bottom: 1px solid #f5f5f5; transition: background 0.1s; }
+tbody tr:hover { background: #fafafa; }
 td { padding: 10px 16px; vertical-align: middle; }
-.photo { width: 44px; height: 56px; object-fit: cover; border-radius: 3px; background: #1a1a1a; display: block; }
-.no-photo { width: 44px; height: 56px; background: #1a1a1a; border-radius: 3px; display: flex; align-items: center; justify-content: center; color: #333; font-size: 18px; }
-.name { font-weight: 500; }
-.korean { color: #666; font-size: 12px; }
-.agency-tag { background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 20px; font-size: 11px; color: #888; }
-.missing { color: #444; }
-.has-data { color: #fafaf8; }
+.photo { width: 40px; height: 52px; object-fit: cover; display: block; background: #f0f0f0; }
+.no-photo { width: 40px; height: 52px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 16px; }
+.name-main { font-weight: 500; font-size: 12px; }
+.name-sub { color: #888; font-size: 11px; margin-top: 1px; }
+.tag { background: #f0f0f0; padding: 2px 8px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.dot-green { display: inline-block; width: 6px; height: 6px; background: #22c55e; border-radius: 50%; margin-right: 6px; }
+.dot-gray  { display: inline-block; width: 6px; height: 6px; background: #d0d0d0; border-radius: 50%; margin-right: 6px; }
+.ext-link { color: #000; text-decoration: none; border-bottom: 1px solid #d0d0d0; font-size: 11px; }
+.ext-link:hover { border-bottom-color: #000; }
+.missing { color: #ccc; }
 </style>
 </head>
 <body>
+
 <header>
   <h1>Model Matching — Admin</h1>
-  <span id="stats">Loading...</span>
+  <div class="header-right">
+    <span>{{ models|length }} models &nbsp;·&nbsp; {{ agencies|length }} agencies</span>
+    <a href="/admin/logout" class="logout">Logout</a>
+  </div>
 </header>
-<div id="search-bar">
-  <input type="text" id="q" placeholder="Search by name, agency, gender..." oninput="render()">
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('agencies', this)">Agencies</div>
+  <div class="tab" onclick="switchTab('models', this)">Models</div>
 </div>
-<div style="overflow-x:auto">
-<table>
-  <thead>
-    <tr>
-      <th></th>
-      <th>Name</th>
-      <th>Gender</th>
-      <th>Height</th>
-      <th>Chest</th>
-      <th>Waist</th>
-      <th>Hips</th>
-      <th>Shoes</th>
-      <th>Hair</th>
-      <th>Eyes</th>
-      <th>Agency</th>
-      <th>Profile</th>
-    </tr>
-  </thead>
-  <tbody id="tbody"></tbody>
-</table>
+
+<div class="toolbar">
+  <input type="text" id="q" placeholder="Search..." oninput="filterTable()">
+</div>
+
+<!-- AGENCIES PANEL -->
+<div class="panel active" id="panel-agencies">
+  <table id="tbl-agencies">
+    <thead>
+      <tr>
+        <th>Agency</th>
+        <th>Website</th>
+        <th>Contact</th>
+        <th>Email</th>
+        <th>Market</th>
+        <th>Models</th>
+        <th>Last Crawled</th>
+        <th>Submitted</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in agencies %}
+      <tr>
+        <td><div class="name-main">{{ a.agency_name }}</div></td>
+        <td><a href="{{ a.agency_website }}" target="_blank" class="ext-link">{{ a.agency_website|replace('https://','') |replace('http://','') }}</a></td>
+        <td>{{ a.contact_name }}</td>
+        <td><a href="mailto:{{ a.contact_email }}" class="ext-link">{{ a.contact_email }}</a></td>
+        <td><span class="tag">{{ a.market }}</span></td>
+        <td>{{ a.model_count }}</td>
+        <td>
+          {% if a.last_crawled_at %}
+            <span class="dot-green"></span>{{ a.last_crawled_at[:10] }}
+          {% else %}
+            <span class="dot-gray"></span><span class="missing">Never</span>
+          {% endif %}
+        </td>
+        <td class="missing">{{ a.submitted_at[:10] if a.submitted_at else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="padding:3rem;text-align:center;color:#888;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;">No agencies registered yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- MODELS PANEL -->
+<div class="panel" id="panel-models">
+  <table id="tbl-models">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Name</th>
+        <th>Gender</th>
+        <th>Height</th>
+        <th>Chest</th>
+        <th>Waist</th>
+        <th>Hips</th>
+        <th>Shoes</th>
+        <th>Hair</th>
+        <th>Eyes</th>
+        <th>Agency</th>
+        <th>Profile</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in models %}
+      <tr>
+        <td>
+          {% if m.photo_url %}
+            <img class="photo" src="{{ m.photo_url }}" onerror="this.parentNode.innerHTML='<div class=no-photo>?</div>'">
+          {% else %}
+            <div class="no-photo">?</div>
+          {% endif %}
+        </td>
+        <td>
+          <div class="name-main">{{ m.english or '—' }}</div>
+          {% if m.korean %}<div class="name-sub">{{ m.korean }}</div>{% endif %}
+        </td>
+        <td>{{ m.gender or '—' }}</td>
+        <td>{% if m.height %}{{ m.height }} cm{% else %}<span class="missing">—</span>{% endif %}</td>
+        <td>{% if m.chest %}{{ m.chest }}{% else %}<span class="missing">—</span>{% endif %}</td>
+        <td>{% if m.waist %}{{ m.waist }}{% else %}<span class="missing">—</span>{% endif %}</td>
+        <td>{% if m.hips %}{{ m.hips }}{% else %}<span class="missing">—</span>{% endif %}</td>
+        <td>{% if m.shoes %}{{ m.shoes }}{% else %}<span class="missing">—</span>{% endif %}</td>
+        <td>{{ m.hair_color or '—' }}</td>
+        <td>{{ m.eye_color or '—' }}</td>
+        <td>{% if m.agency_name %}<span class="tag">{{ m.agency_name }}</span>{% else %}<span class="missing">—</span>{% endif %}</td>
+        <td>{% if m.profile_url %}<a href="{{ m.profile_url }}" target="_blank" class="ext-link">↗</a>{% else %}<span class="missing">—</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 
 <script>
-let ALL = [];
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('q').value = '';
+}
 
-fetch('/api/models').then(r => r.json()).then(data => {
-  ALL = data;
-  document.getElementById('stats').textContent = `${data.length} models`;
-  render();
-});
-
-function render() {
+function filterTable() {
   const q = document.getElementById('q').value.toLowerCase();
-  const rows = ALL.filter(m => {
-    if (!q) return true;
-    return (m.english||'').toLowerCase().includes(q) ||
-           (m.korean||'').toLowerCase().includes(q) ||
-           (m.agency_name||'').toLowerCase().includes(q) ||
-           (m.gender||'').toLowerCase().includes(q);
+  const activePanel = document.querySelector('.panel.active');
+  activePanel.querySelectorAll('tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
   });
-
-  document.getElementById('stats').textContent = `${rows.length} / ${ALL.length} models`;
-
-  const tbody = document.getElementById('tbody');
-  tbody.innerHTML = rows.map(m => `
-    <tr>
-      <td>${m.photo_url
-        ? `<img class="photo" src="${m.photo_url}" onerror="this.parentNode.innerHTML='<div class=\\'no-photo\\'>?</div>'">`
-        : '<div class="no-photo">?</div>'}</td>
-      <td>
-        <div class="name">${m.english || '—'}</div>
-        ${m.korean ? `<div class="korean">${m.korean}</div>` : ''}
-      </td>
-      <td class="${m.gender ? 'has-data' : 'missing'}">${m.gender || '—'}</td>
-      <td class="${m.height ? 'has-data' : 'missing'}">${m.height ? m.height + ' cm' : '—'}</td>
-      <td class="${m.chest ? 'has-data' : 'missing'}">${m.chest || '—'}</td>
-      <td class="${m.waist ? 'has-data' : 'missing'}">${m.waist || '—'}</td>
-      <td class="${m.hips ? 'has-data' : 'missing'}">${m.hips || '—'}</td>
-      <td class="${m.shoes ? 'has-data' : 'missing'}">${m.shoes || '—'}</td>
-      <td class="${m.hair_color ? 'has-data' : 'missing'}">${[m.hair_length, m.hair_color].filter(Boolean).join(' ') || '—'}</td>
-      <td class="${m.eye_color ? 'has-data' : 'missing'}">${m.eye_color || '—'}</td>
-      <td>${m.agency_name ? `<span class="agency-tag">${m.agency_name}</span>` : '<span class="missing">—</span>'}</td>
-      <td>${m.profile_url ? `<a href="${m.profile_url}" target="_blank" style="color:#c8a97e;text-decoration:none">↗</a>` : '<span class="missing">—</span>'}</td>
-    </tr>
-  `).join('');
 }
 </script>
 </body>

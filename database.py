@@ -181,6 +181,19 @@ def save_agency(agency_name, agency_website, contact_name, contact_email, market
     conn.close()
 
 
+def get_all_agencies():
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT a.*, COUNT(m.id) as model_count
+        FROM agencies a
+        LEFT JOIN models m ON m.agency_name = a.agency_name
+        GROUP BY a.id
+        ORDER BY a.submitted_at DESC
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def get_all_models():
     conn = get_connection()
     rows = conn.execute("SELECT * FROM models").fetchall()

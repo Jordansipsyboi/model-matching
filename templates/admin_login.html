@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login — Model Matching</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #fff; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.box { width: 320px; }
+h1 { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 2rem; }
+input { width: 100%; border: none; border-bottom: 1px solid #000; padding: 0.6rem 0; font-size: 0.9rem; font-family: inherit; outline: none; margin-bottom: 1.5rem; }
+button { width: 100%; background: #000; color: #fff; border: none; padding: 0.9rem; font-family: inherit; font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; }
+.error { font-size: 0.75rem; color: #c00; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Model Matching — Admin</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form method="POST">
+    <input type="password" name="password" placeholder="Password" autofocus>
+    <button type="submit">Enter</button>
+  </form>
+</div>
+</body>
+</html>
