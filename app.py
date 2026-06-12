@@ -108,6 +108,16 @@ def admin_crawl(agency_id):
 
 
 
+@app.route("/admin/agency-status/<int:agency_id>")
+def admin_agency_status(agency_id):
+    if not session.get("admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    conn = database.get_connection()
+    row = conn.execute("SELECT last_crawled_at FROM agencies WHERE id = ?", (agency_id,)).fetchone()
+    conn.close()
+    return jsonify({"last_crawled_at": row["last_crawled_at"] if row else None})
+
+
 # ── Nightly scheduler ──────────────────────────────────────────
 
 def run_nightly_crawl():

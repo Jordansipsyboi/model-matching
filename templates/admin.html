@@ -170,10 +170,22 @@ function crawlAgency(id, btn) {
   fetch(`/admin/crawl/${id}`, { method: 'POST' })
     .then(r => r.json())
     .then(() => {
-      btn.textContent = 'Running...';
-      setTimeout(() => { btn.textContent = 'Done ✓'; }, 3000);
+      // Poll every 5s until last_crawled_at is set
+      const interval = setInterval(() => {
+        fetch('/admin/agency-status/' + id)
+          .then(r => r.json())
+          .then(data => {
+            if (data.last_crawled_at) {
+              clearInterval(interval);
+              btn.textContent = 'Done ✓';
+              btn.disabled = false;
+              // Refresh page to show updated model count
+              setTimeout(() => location.reload(), 800);
+            }
+          });
+      }, 5000);
     })
-    .catch(() => { btn.textContent = 'Error'; });
+    .catch(() => { btn.textContent = 'Error'; btn.disabled = false; });
 }
 
 function filterTable() {
