@@ -167,23 +167,23 @@ function switchTab(name, el) {
 function crawlAgency(id, btn) {
   btn.disabled = true;
   btn.textContent = 'Syncing...';
+  const startedAt = new Date().toISOString();
   fetch(`/admin/crawl/${id}`, { method: 'POST' })
     .then(r => r.json())
     .then(() => {
-      // Poll every 5s until last_crawled_at is set
+      // Poll every 6s — only done if last_crawled_at is AFTER we started
       const interval = setInterval(() => {
         fetch('/admin/agency-status/' + id)
           .then(r => r.json())
           .then(data => {
-            if (data.last_crawled_at) {
+            if (data.last_crawled_at && data.last_crawled_at > startedAt) {
               clearInterval(interval);
               btn.textContent = 'Done ✓';
               btn.disabled = false;
-              // Refresh page to show updated model count
-              setTimeout(() => location.reload(), 800);
+              setTimeout(() => location.reload(), 1000);
             }
           });
-      }, 5000);
+      }, 6000);
     })
     .catch(() => { btn.textContent = 'Error'; btn.disabled = false; });
 }
