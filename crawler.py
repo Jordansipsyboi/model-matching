@@ -196,10 +196,15 @@ def parse_profile_html(html: str, profile_url: str) -> dict:
 
         result = {}
 
-        # Name — try <h1> or <title>
-        h1 = soup.find("h1")
-        if h1:
-            result["english"] = h1.get_text(strip=True).upper()
+        # Name — try h1, h2, then URL slug
+        for tag in ["h1", "h2", "h3"]:
+            el = soup.find(tag)
+            if el and el.get_text(strip=True):
+                result["english"] = el.get_text(strip=True).upper()
+                break
+        if not result.get("english"):
+            slug = profile_url.rstrip("/").split("/")[-1]
+            result["english"] = slug.replace("-", " ").replace("_", " ").upper()
 
         # Height — English or Korean (신장)
         m = re.search(r'(?:height|신장|키)[\s:]*(\d{2,3})', text, re.I)
