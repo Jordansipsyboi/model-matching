@@ -771,13 +771,14 @@ function openModal(id) {
   const body = encodeURIComponent(`Hi,\n\nI found ${m.english} on Model Matching and would like to inquire about booking availability.\n\nPlease let me know rates and availability.\n\nThank you.`);
   if (m.agency_email) {
     btn.href = `mailto:${m.agency_email}?subject=${subject}&body=${body}`;
-    btn.style.display = "block";
+  } else if (m.profile_url) {
+    btn.href = m.profile_url;
   } else if (m.agency_website_url) {
     btn.href = m.agency_website_url;
-    btn.style.display = "block";
   } else {
-    btn.style.display = "none";
+    btn.href = "#";
   }
+  btn.style.display = "block";
 
   document.getElementById("modalBg").classList.add("open");
   document.body.style.overflow = "hidden";
