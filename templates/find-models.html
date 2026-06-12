@@ -769,7 +769,7 @@ function openModal(id) {
   const btn = document.querySelector(".modal-contact");
   const subject = encodeURIComponent(`Booking Inquiry — ${m.english}`);
   const body = encodeURIComponent(`Hi,\n\nI would like to book ${m.english} (${m.agency_name || 'Independent'}).\n\nPlease get back to me with availability and rates.\n\nThank you.`);
-  btn.href = `mailto:eden137925@gmail.com?subject=${subject}&body=${body}`;
+  btn.href = `https://mail.google.com/mail/?view=cm&to=eden137925@gmail.com&su=${subject}&body=${body}`;
   btn.style.display = "block";
 
   document.getElementById("modalBg").classList.add("open");
