@@ -528,10 +528,6 @@ function validateRequiredFields() {
 
   const missingFields = [];
   const photoInput = document.getElementById("photoInput");
-  const keywordInput = document.getElementById("keywordInput");
-  const ageMinInput = document.getElementById("ageMin");
-  const ageMaxInput = document.getElementById("ageMax");
-  const currencySelect = document.getElementById("currencySelect");
   const budgetMinInput = document.getElementById("budgetMin");
   const budgetMaxInput = document.getElementById("budgetMax");
 
@@ -540,72 +536,19 @@ function validateRequiredFields() {
     missingFields.push("reference photo");
   }
 
-  if (!keywordInput.value.trim()) {
-    setErrorState(keywordInput);
-    missingFields.push("keyword search");
-  }
-
   if (!activeWorkTypes.length) {
     setErrorState(document.getElementById("workTypeChips"));
     missingFields.push("work type");
   }
 
-  if (!activeLooks.length) {
-    setErrorState(document.getElementById("lookChips"));
-    missingFields.push("look / vibe");
-  }
-
-  if (!ageMinInput.value.trim()) {
-    setErrorState(ageMinInput);
-    missingFields.push("minimum age");
-  }
-
-  if (!ageMaxInput.value.trim()) {
-    setErrorState(ageMaxInput);
-    missingFields.push("maximum age");
-  }
-
-  if (!currencySelect.value) {
-    setErrorState(currencySelect);
-    missingFields.push("budget currency");
-  }
-
-  if (!budgetMinInput.value.trim()) {
+  if (!budgetMinInput.value.trim() || !budgetMaxInput.value.trim()) {
     setErrorState(budgetMinInput);
-    missingFields.push("minimum budget");
-  }
-
-  if (!budgetMaxInput.value.trim()) {
     setErrorState(budgetMaxInput);
-    missingFields.push("maximum budget");
-  }
-
-  if (!activeGender.length) {
-    setErrorState(document.getElementById("genderChips"));
-    missingFields.push("gender");
-  }
-
-  if (!activeNationalities.length) {
-    setErrorState(document.getElementById("nationalityChips"));
-    missingFields.push("nationality");
-  }
-
-  if (!activeHair.length) {
-    setErrorState(document.getElementById("hairChips"));
-    missingFields.push("hair length");
+    missingFields.push("budget range");
   }
 
   if (missingFields.length) {
-    showValidationBanner(`Please complete all required fields before finding matches. Missing: ${missingFields.join(", ")}.`);
-    return false;
-  }
-
-  const ageMin = parseInt(ageMinInput.value, 10);
-  const ageMax = parseInt(ageMaxInput.value, 10);
-  if (ageMin > ageMax) {
-    setErrorState(ageMinInput);
-    setErrorState(ageMaxInput);
-    showValidationBanner("Please enter a valid age range. The minimum age cannot be greater than the maximum age.");
+    showValidationBanner(`Please complete the required fields: ${missingFields.join(", ")}.`);
     return false;
   }
 
