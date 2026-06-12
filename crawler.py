@@ -317,7 +317,9 @@ def save_crawled_models(models: list, agency_name: str):
     for m in models:
         if not m.get("english"):
             continue
-        model_id = m["english"].lower().replace(" ", "_").replace("'", "")
+        # Normalize name: remove hyphens/punctuation so lee-hai-na and lee haina get same ID
+        import re as _re
+        model_id = _re.sub(r'[^a-z0-9]+', '_', m["english"].lower()).strip('_')
         try:
             conn.execute(
                 """
