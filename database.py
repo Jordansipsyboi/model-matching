@@ -153,6 +153,8 @@ def _row_to_model(row):
         "photo_url": row["photo_url"] or "",
         "agency_name": row["agency_name"] or "",
         "profile_url": row["profile_url"] or "",
+        "agency_email": row["agency_email"] if "agency_email" in row.keys() and row["agency_email"] else "",
+        "agency_website_url": row["agency_website_url"] if "agency_website_url" in row.keys() and row["agency_website_url"] else "",
         # metric
         "height": h,
         "chest": chest,
@@ -196,7 +198,11 @@ def get_all_agencies():
 
 def get_all_models():
     conn = get_connection()
-    rows = conn.execute("SELECT * FROM models").fetchall()
+    rows = conn.execute("""
+        SELECT m.*, a.contact_email as agency_email, a.agency_website as agency_website_url
+        FROM models m
+        LEFT JOIN agencies a ON a.agency_name = m.agency_name
+    """).fetchall()
     conn.close()
     return [_row_to_model(r) for r in rows]
 

@@ -460,7 +460,7 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
         <p class="modal-section-label">Look</p>
         <div class="modal-tags" id="modalLooks"></div>
       </div>
-      <button class="modal-contact">Request Booking</button>
+      <a class="modal-contact" target="_blank">Request Booking</a>
     </div>
   </div>
 </div>
@@ -764,6 +764,21 @@ function openModal(id) {
 `;
   document.getElementById("modalTags").innerHTML = m.workTypes.map(t => `<span class="modal-tag">${t}</span>`).join("");
   document.getElementById("modalLooks").innerHTML = m.looks.map(l => `<span class="modal-tag">${l}</span>`).join("");
+
+  // Request Booking button
+  const btn = document.querySelector(".modal-contact");
+  const subject = encodeURIComponent(`Booking Inquiry — ${m.english}`);
+  const body = encodeURIComponent(`Hi,\n\nI found ${m.english} on Model Matching and would like to inquire about booking availability.\n\nPlease let me know rates and availability.\n\nThank you.`);
+  if (m.agency_email) {
+    btn.href = `mailto:${m.agency_email}?subject=${subject}&body=${body}`;
+    btn.style.display = "block";
+  } else if (m.agency_website_url) {
+    btn.href = m.agency_website_url;
+    btn.style.display = "block";
+  } else {
+    btn.style.display = "none";
+  }
+
   document.getElementById("modalBg").classList.add("open");
   document.body.style.overflow = "hidden";
 }
