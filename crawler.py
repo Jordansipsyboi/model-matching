@@ -255,17 +255,27 @@ def parse_profile_html(html: str, profile_url: str) -> dict:
         if m:
             result["eye_color"] = m.group(1).strip().lower()
 
-        # Photo — first large img
-        img = soup.find("img", src=True)
-        if img:
-            src = img["src"]
-            if src.startswith("//"):
-                src = "https:" + src
-            elif src.startswith("/"):
-                from urllib.parse import urlparse
-                parsed = urlparse(profile_url)
-                src = f"{parsed.scheme}://{parsed.netloc}{src}"
-            result["photo_url"] = src
+        # Photo — try og:image first, then wp-content images, then any large img
+        from urllib.parse import urlparse
+        parsed_url = urlparse(profile_url)
+        base_origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+        og = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "og:image"})
+        if og and og.get("content"):
+            result["photo_url"] = og["content"]
+        else:
+            # Find all imgs, prefer ones with wp-content or large paths (skip logos/icons)
+            for img in soup.find_all("img", src=True):
+                src = img["src"]
+                if any(skip in src.lower() for skip in ["logo", "icon", "favicon", "sprite", "placeholder"]):
+                    continue
+                if src.startswith("//"):
+                    src = "https:" + src
+                elif src.startswith("/"):
+                    src = base_origin + src
+                if src.startswith("http"):
+                    result["photo_url"] = src
+                    break
 
         return result
 
