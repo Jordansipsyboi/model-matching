@@ -258,11 +258,11 @@ def parse_profile_html(html: str, profile_url: str) -> dict:
             if not any(bad in eye for bad in ["compcard", "comp", "card", "listed", "profile"]):
                 result["eye_color"] = eye
 
-        # Gender — infer from roster URL path
+        # Gender — infer from roster URL path (check women before men to avoid "women" matching "men")
         path = profile_url.lower()
-        if any(w in path for w in ["women", "female", "ladies"]):
+        if any(w in path for w in ["women", "female", "ladies", "asian_women", "international_women"]):
             result["gender"] = "female"
-        elif any(w in path for w in ["men", "male", "guys"]):
+        elif any(w in path for w in ["asian_men", "international_men", "/men/", "male", "guys"]):
             result["gender"] = "male"
 
         # Photo — try og:image first, then wp-content images, then any large img
