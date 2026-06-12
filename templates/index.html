@@ -239,6 +239,7 @@
   .footer-links { display: flex; gap: 2rem; list-style: none; flex-wrap: wrap; }
   .footer-links a { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-400); text-decoration: none; transition: color 0.2s; }
   .footer-links a:hover { color: var(--black); }
+  .footer-links span { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-400); opacity: 0.7; }
   .footer-copy { font-size: 0.75rem; color: var(--gray-400); }
 
   /* ANIMATIONS */
@@ -265,6 +266,21 @@
     .steps { grid-template-columns: 1fr; gap: 2px; }
     .cta-section { padding: 5rem 1.5rem; }
     footer { padding: 2rem 1.5rem; flex-direction: column; align-items: flex-start; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .hero-eyebrow, .hero-title, .hero-sub, .hero-buttons, .hero-scroll {
+      animation: none;
+      opacity: 1;
+    }
+    .hero-slide, .hero-slide.active, .hero-slide.prev {
+      transition: none;
+      transform: none;
+    }
+    .marquee-track, .scroll-line, .hero-flash {
+      animation: none !important;
+    }
   }
 </style>
 </head>
@@ -394,11 +410,11 @@
 <footer>
   <div class="footer-logo">Model Matching</div>
   <ul class="footer-links">
-    <li><a href="#">How it works</a></li>
-    <li><a href="#">For agencies</a></li>
-    <li><a href="#">For brands</a></li>
-    <li><a href="#">Contact</a></li>
-    <li><a href="#">Terms</a></li>
+    <li><a href="#how">How it works</a></li>
+    <li><a href="/list-models">For agencies</a></li>
+    <li><a href="/find-models">For brands</a></li>
+    <li><span>Contact</span></li>
+    <li><span>Terms</span></li>
   </ul>
   <p class="footer-copy">© 2025 Model Matching</p>
 </footer>
@@ -406,11 +422,15 @@
 <script>
   const slides = document.querySelectorAll('.hero-slide');
   const flash = document.getElementById('heroFlash');
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   let current = 0;
+  let slideIntervalId = null;
+  let flashIntervalId = null;
 
   function triggerFlash() {
+    if (!flash) return;
     flash.style.animation = 'none';
-    flash.offsetHeight; // reflow
+    void flash.offsetHeight; // reflow
     flash.style.animation = 'flashBurst 0.6s ease forwards';
   }
 
@@ -431,15 +451,53 @@
     triggerFlash();
   }
 
-  // Start slideshow — each slide holds for 4s
-  setInterval(nextSlide, 4000);
-
-  // Random subtle extra flashes mid-slide for that paparazzi feel
-  setInterval(() => {
-    if (Math.random() > 0.55) {
-      setTimeout(triggerFlash, Math.random() * 1500);
+  function stopHeroMotion() {
+    if (slideIntervalId) {
+      clearInterval(slideIntervalId);
+      slideIntervalId = null;
     }
-  }, 2500);
+    if (flashIntervalId) {
+      clearInterval(flashIntervalId);
+      flashIntervalId = null;
+    }
+
+    slides.forEach((slide, index) => {
+      slide.classList.toggle('active', index === 0);
+      slide.classList.remove('prev');
+    });
+    current = 0;
+  }
+
+  function startHeroMotion() {
+    if (motionQuery.matches || slides.length <= 1 || slideIntervalId || flashIntervalId) return;
+
+    // Each slide holds for 4s.
+    slideIntervalId = window.setInterval(nextSlide, 4000);
+
+    // Random subtle extra flashes mid-slide for that paparazzi feel.
+    flashIntervalId = window.setInterval(() => {
+      if (Math.random() > 0.55) {
+        window.setTimeout(triggerFlash, Math.random() * 1500);
+      }
+    }, 2500);
+  }
+
+  function syncHeroMotion() {
+    if (motionQuery.matches) {
+      stopHeroMotion();
+      return;
+    }
+
+    startHeroMotion();
+  }
+
+  syncHeroMotion();
+
+  if (typeof motionQuery.addEventListener === 'function') {
+    motionQuery.addEventListener('change', syncHeroMotion);
+  } else if (typeof motionQuery.addListener === 'function') {
+    motionQuery.addListener(syncHeroMotion);
+  }
 </script>
 
 </body>
