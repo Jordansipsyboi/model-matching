@@ -628,7 +628,7 @@ function renderCards(models) {
     return;
   }
   grid.innerHTML = models.map(m => {
-    const photo = PHOTOS[m.id] || "";
+    const photo = m.photo_url || "";
     const age = new Date().getFullYear() - m.birth;
     const tags = m.workTypes.slice(0,3).map(t => `<span class="card-tag">${t}</span>`).join("");
     const matchBadge = photoUploaded ? `<div class="match-badge visible">${Math.floor(70+Math.random()*28)}% match</div>` : "";
@@ -793,7 +793,7 @@ zone.addEventListener("drop", e => {
 function openModal(id) {
   const m = MODELS.find(x => x.id === id);
   if (!m) return;
-  document.getElementById("modalImg").src = PHOTOS[m.id] || "";
+  document.getElementById("modalImg").src = m.photo_url || "";
   document.getElementById("modalName").textContent = m.english;
   document.getElementById("modalKorean").textContent = m.korean;
   const chestLabel = m.gender === "female" ? "Bust" : "Chest";

@@ -97,7 +97,10 @@ def init_db():
             nationality TEXT,
             work_types  TEXT,
             looks       TEXT,
-            rate        INTEGER
+            rate        INTEGER,
+            photo_url   TEXT,
+            agency_name TEXT,
+            profile_url TEXT
         )
         """
     )
@@ -147,6 +150,9 @@ def _row_to_model(row):
         "workTypes": json.loads(row["work_types"]),
         "looks": json.loads(row["looks"]),
         "rate": row["rate"],
+        "photo_url": row["photo_url"] or "",
+        "agency_name": row["agency_name"] or "",
+        "profile_url": row["profile_url"] or "",
         # metric
         "height": h,
         "chest": chest,

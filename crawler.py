@@ -42,7 +42,7 @@ Look at the HTML and extract ALL models you can find. For each model return a JS
 - chest: chest/bust in cm as integer (convert from inches if needed)
 - waist: waist in cm as integer (convert from inches if needed)
 - hips: hips in cm as integer (convert from inches if needed)
-- shoes: shoe size in mm as integer (convert from EU/US if needed: EU*6.667 ≈ mm)
+- shoes: shoe size in mm as integer (convert from EU/US if needed: EU size * 6.667 ≈ mm)
 - hair_length: one of "short", "medium", "long", "buzzcut", "bald"
 - hair_color: e.g. "black", "brown", "blonde"
 - eye_color: e.g. "brown", "black", "blue"
@@ -52,9 +52,28 @@ Look at the HTML and extract ALL models you can find. For each model return a JS
 - rate: day rate in USD as integer (if not listed use 0)
 - agency: the agency name (string)
 - source_url: the URL this model was found on (string)
+- profile_url: the URL to this model's individual profile page if you can find it as a link in the HTML, else empty string
+- photo_url: the URL of the model's main photo/headshot img src if visible, else empty string
 
 Return ONLY a JSON array of model objects. If you cannot find any models, return an empty array [].
 Do not include any explanation, just the JSON."""
+
+PROFILE_PROMPT = """You are extracting detailed data from a single model's profile page.
+
+Return a JSON object (not array) with these fields:
+- english: full name in English
+- korean: name in Korean if present, else empty string
+- height: height in cm as integer (convert from ft/in if needed)
+- chest: chest/bust in cm as integer
+- waist: waist in cm as integer
+- hips: hips in cm as integer
+- shoes: shoe size in mm as integer (EU size * 6.667 ≈ mm)
+- hair_length: one of "short", "medium", "long", "buzzcut", "bald"
+- hair_color: e.g. "black", "brown", "blonde"
+- eye_color: e.g. "brown", "black", "blue"
+- photo_url: the full URL of the model's main profile photo img src (absolute URL preferred)
+
+Return ONLY the JSON object. No explanation."""
 
 
 # URL patterns that likely lead to model roster pages
@@ -146,6 +165,24 @@ def extract_models_with_ai(html: str, agency_name: str, url: str) -> list:
     return all_models
 
 
+def fetch_profile_details(html: str, profile_url: str) -> dict:
+    trimmed = html[:40000]
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": f"URL: {profile_url}\n\nHTML:\n{trimmed}\n\n{PROFILE_PROMPT}"}]
+    )
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+
+
 def save_crawled_models(models: list, agency_name: str):
     conn = database.get_connection()
     added = 0
@@ -159,8 +196,8 @@ def save_crawled_models(models: list, agency_name: str):
                 INSERT OR REPLACE INTO models
                     (id, korean, english, birth, height, chest, waist, hips, shoes,
                      hair_length, hair_color, eye_color, gender, nationality,
-                     work_types, looks, rate)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     work_types, looks, rate, photo_url, agency_name, profile_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     model_id,
@@ -180,6 +217,9 @@ def save_crawled_models(models: list, agency_name: str):
                     json.dumps(m.get("workTypes", [])),
                     json.dumps(m.get("looks", [])),
                     m.get("rate", 0),
+                    m.get("photo_url", ""),
+                    agency_name,
+                    m.get("profile_url", ""),
                 )
             )
             added += 1
@@ -188,6 +228,45 @@ def save_crawled_models(models: list, agency_name: str):
     conn.commit()
     conn.close()
     return added
+
+
+async def enrich_model_profiles(models: list, base_url: str, agency_name: str):
+    """Visit each model's individual profile page to get photo + measurements."""
+    from urllib.parse import urljoin, urlparse
+    base = f"{urlparse(base_url).scheme}://{urlparse(base_url).netloc}"
+
+    enriched = 0
+    for m in models:
+        profile_url = m.get("profile_url", "")
+        if not profile_url:
+            continue
+        # Make absolute URL
+        if profile_url.startswith("/"):
+            profile_url = urljoin(base, profile_url)
+        if not profile_url.startswith("http"):
+            continue
+
+        try:
+            html, _ = await fetch_page_html(profile_url)
+            if not html:
+                continue
+            details = fetch_profile_details(html, profile_url)
+            if details:
+                # Merge details into model, only overwrite zeros
+                for field in ["height", "chest", "waist", "hips", "shoes"]:
+                    if details.get(field) and m.get(field, 0) == 0:
+                        m[field] = details[field]
+                for field in ["hair_length", "hair_color", "eye_color", "photo_url"]:
+                    if details.get(field) and not m.get(field):
+                        m[field] = details[field]
+                if details.get("photo_url"):
+                    m["photo_url"] = details["photo_url"]
+                enriched += 1
+        except Exception as e:
+            print(f"  Profile fetch error for {m.get('english')}: {e}")
+
+    print(f"  Enriched {enriched}/{len(models)} profiles with photo + measurements")
+    return models
 
 
 def update_last_crawled(agency_id: int):
@@ -242,6 +321,8 @@ async def crawl_agency(agency: dict):
             models.extend(sub_models)
 
     if models:
+        print(f"  Enriching profiles for {len(models)} models...")
+        models = await enrich_model_profiles(models, url, name)
         added = save_crawled_models(models, name)
         print(f"  Saved {added} models to database")
     else:
