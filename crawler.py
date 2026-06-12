@@ -504,8 +504,15 @@ async def main(url_override=None):
     database.init_db()
 
     if url_override:
-        # One-off crawl for a specific URL (for testing)
-        agency = {"id": 0, "agency_name": "Test", "agency_website": url_override}
+        from urllib.parse import urlparse
+        host = urlparse(url_override).netloc.replace("www.", "")
+        name_map = {
+            "jmodelmanagement.co.kr": "J Model Management",
+            "morphmgmt.com": "MORPH Management",
+            "models.com": "Models.com",
+        }
+        agency_name = name_map.get(host, host)
+        agency = {"id": 0, "agency_name": agency_name, "agency_website": url_override}
         await crawl_agency(agency)
         return
 
