@@ -57,7 +57,16 @@ Return ONLY a JSON array of model objects. If you cannot find any models, return
 Do not include any explanation, just the JSON."""
 
 
-async def fetch_page_html(url: str) -> str:
+# URL patterns that likely lead to model roster pages
+ROSTER_PATTERNS = [
+    "women", "men", "woman", "man", "model", "talent", "roster",
+    "asian", "international", "board", "new_face", "newface",
+    "female", "male", "portfolio"
+]
+
+
+async def fetch_page_html(url: str) -> tuple[str, list]:
+    """Returns (html, roster_urls) — roster_urls are sub-pages found on the page."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page(
@@ -67,12 +76,34 @@ async def fetch_page_html(url: str) -> str:
             await page.goto(url, wait_until="domcontentloaded", timeout=45000)
             await page.wait_for_timeout(4000)
             html = await page.content()
+
+            # Find links that look like model roster pages
+            from urllib.parse import urljoin, urlparse
+            base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
+            links = await page.eval_on_selector_all(
+                "a[href]", "els => els.map(e => e.getAttribute('href'))"
+            )
+            roster_urls = []
+            seen = set()
+            for href in links:
+                if not href:
+                    continue
+                full = urljoin(base, href)
+                # Only same-domain links matching roster patterns
+                if urlparse(full).netloc != urlparse(url).netloc:
+                    continue
+                path = urlparse(full).path.lower()
+                if any(p in path for p in ROSTER_PATTERNS) and full not in seen:
+                    seen.add(full)
+                    roster_urls.append(full)
+
         except Exception as e:
             print(f"  Failed to load {url}: {e}")
             html = ""
+            roster_urls = []
         finally:
             await browser.close()
-    return html
+    return html, roster_urls
 
 
 def extract_models_with_ai(html: str, agency_name: str, url: str) -> list:
@@ -177,18 +208,33 @@ async def crawl_agency(agency: dict):
     url = agency["agency_website"]
     print(f"\nCrawling: {name} ({url})")
 
-    html = await fetch_page_html(url)
+    html, roster_urls = await fetch_page_html(url)
     if not html:
         print(f"  Skipping — could not load page")
         return 0
 
+    # Try the homepage first
     print(f"  Page loaded ({len(html):,} chars). Sending to AI...")
     models = extract_models_with_ai(html, name, url)
-    print(f"  AI found {len(models)} models")
+    print(f"  AI found {len(models)} models on homepage")
+
+    # If homepage had no models, try roster sub-pages
+    if not models and roster_urls:
+        print(f"  Found {len(roster_urls)} roster sub-pages: {roster_urls[:5]}")
+        for roster_url in roster_urls[:6]:  # max 6 sub-pages per agency
+            print(f"  Trying: {roster_url}")
+            sub_html, _ = await fetch_page_html(roster_url)
+            if not sub_html:
+                continue
+            sub_models = extract_models_with_ai(sub_html, name, roster_url)
+            print(f"  AI found {len(sub_models)} models on {roster_url}")
+            models.extend(sub_models)
 
     if models:
         added = save_crawled_models(models, name)
         print(f"  Saved {added} models to database")
+    else:
+        print(f"  No models found on any page")
 
     update_last_crawled(agency["id"])
     return len(models)
