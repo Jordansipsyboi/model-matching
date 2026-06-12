@@ -1,6 +1,12 @@
 from flask import Flask, render_template, request, jsonify
 
+import database
+
 app = Flask(__name__)
+
+# Make sure the database file exists and has the starter models in it.
+database.init_db()
+database.seed_db()
 
 
 @app.route("/")
@@ -16,6 +22,12 @@ def find_models():
 @app.route("/list-models")
 def list_models():
     return render_template("list-models.html")
+
+
+@app.route("/api/models")
+def api_models():
+    """Return every model in the database as JSON."""
+    return jsonify(database.get_all_models())
 
 
 @app.route("/api/submit-agency", methods=["POST"])
