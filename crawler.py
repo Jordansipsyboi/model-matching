@@ -181,6 +181,93 @@ def extract_models_with_ai(html: str, agency_name: str, url: str) -> list:
     return all_models
 
 
+def parse_profile_html(html: str, profile_url: str) -> dict:
+    """Extract profile data using regex — free, no AI needed.
+    Works for sites with plain-text measurements like:
+    'height 176 bust 34 waist 25 hips 35 shoes 255/38.5 hair black eyes dark brown'
+    Falls back to AI if regex finds nothing useful.
+    """
+    import re
+    from bs4 import BeautifulSoup
+
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        text = soup.get_text(" ", strip=True)
+
+        result = {}
+
+        # Name — try <h1> or <title>
+        h1 = soup.find("h1")
+        if h1:
+            result["english"] = h1.get_text(strip=True).upper()
+
+        # Height
+        m = re.search(r'height[\s:]*(\d{2,3})', text, re.I)
+        if m:
+            h = int(m.group(1))
+            # Convert ft'in" to cm if needed
+            if h < 100:
+                ft_in = re.search(r"(\d)'(\d+)", text)
+                if ft_in:
+                    h = round(int(ft_in.group(1)) * 30.48 + int(ft_in.group(2)) * 2.54)
+            result["height"] = h
+
+        # Bust/Chest
+        for label in ["bust", "chest"]:
+            m = re.search(rf'{label}[\s:]*(\d{{2,3}})', text, re.I)
+            if m:
+                result["chest"] = int(m.group(1))
+                break
+
+        # Waist
+        m = re.search(r'waist[\s:]*(\d{2,3})', text, re.I)
+        if m:
+            result["waist"] = int(m.group(1))
+
+        # Hips
+        m = re.search(r'hips?[\s:]*(\d{2,3})', text, re.I)
+        if m:
+            result["hips"] = int(m.group(1))
+
+        # Shoes — look for mm value first, then EU
+        m = re.search(r'shoes?[\s:]*(\d{3})', text, re.I)
+        if m:
+            result["shoes"] = int(m.group(1))
+        else:
+            m = re.search(r'shoes?[\s:]*(\d{2}(?:\.\d)?)', text, re.I)
+            if m:
+                eu = float(m.group(1))
+                result["shoes"] = round((eu + 1.5) / 0.667 * 10)
+
+        # Hair color
+        m = re.search(r'hair[\s:]*([a-z ]+?)(?:\s+eyes|\s+$|\s{2})', text, re.I)
+        if m:
+            result["hair_color"] = m.group(1).strip().lower()
+            result["hair_length"] = "medium"
+
+        # Eye color
+        m = re.search(r'eyes?[\s:]*([a-z ]+?)(?:\s+\w+[\s:]|\s*$)', text, re.I)
+        if m:
+            result["eye_color"] = m.group(1).strip().lower()
+
+        # Photo — first large img
+        img = soup.find("img", src=True)
+        if img:
+            src = img["src"]
+            if src.startswith("//"):
+                src = "https:" + src
+            elif src.startswith("/"):
+                from urllib.parse import urlparse
+                parsed = urlparse(profile_url)
+                src = f"{parsed.scheme}://{parsed.netloc}{src}"
+            result["photo_url"] = src
+
+        return result
+
+    except Exception:
+        return {}
+
+
 def fetch_profile_details(html: str, profile_url: str) -> dict:
     trimmed = html[:40000]
     message = client.messages.create(
@@ -260,7 +347,11 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
             html, _, _ = await fetch_page_html(profile_url)
             if not html:
                 continue
-            details = fetch_profile_details(html, profile_url)
+            # Try regex first (free), fall back to AI only if needed
+            details = parse_profile_html(html, profile_url)
+            if not details or not details.get("height"):
+                print(f"    Regex found nothing, using AI fallback...")
+                details = fetch_profile_details(html, profile_url)
             if not details or not details.get("english"):
                 continue
 
