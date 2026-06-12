@@ -586,7 +586,7 @@ function renderCards(models) {
       </div>
       <div class="card-info">
         <p class="card-name">${m.english}</p>
-        <p class="card-stats">${m.height}cm · ${m.waist}" · $${m.rate.toLocaleString()}</p>
+        <p class="card-stats">${m.height}cm · ${m.chest}/${m.waist}/${m.hips} · $${m.rate.toLocaleString()}</p>
         <div class="card-tags">${tags}</div>
       </div>
     </div>`;
@@ -729,10 +729,15 @@ function openModal(id) {
   document.getElementById("modalImg").src = PHOTOS[m.id] || "";
   document.getElementById("modalName").textContent = m.english;
   document.getElementById("modalKorean").textContent = m.korean;
+  const chestLabel = m.gender === "female" ? "Bust" : "Chest";
   document.getElementById("modalStats").innerHTML = `
-    <div class="modal-stat"><div class="modal-stat-num">${m.height}<span style="font-size:0.9rem">cm</span></div><div class="modal-stat-label">Height</div></div>
-    <div class="modal-stat"><div class="modal-stat-num">${m.waist}<span style="font-size:0.9rem">"</span></div><div class="modal-stat-label">Waist</div></div>
-    <div class="modal-stat"><div class="modal-stat-num">${m.shoes}<span style="font-size:0.9rem">mm</span></div><div class="modal-stat-label">Shoes</div></div>
+    <div class="modal-stat"><div class="modal-stat-num">${m.height}<span style="font-size:0.9rem">cm</span></div><div class="modal-stat-label">Height</div><div style="font-size:0.7rem;color:var(--gray-400)">${m.height_imperial}</div></div>
+    <div class="modal-stat"><div class="modal-stat-num">${m.chest}<span style="font-size:0.9rem">cm</span></div><div class="modal-stat-label">${chestLabel}</div><div style="font-size:0.7rem;color:var(--gray-400)">${m.chest_in}"</div></div>
+    <div class="modal-stat"><div class="modal-stat-num">${m.waist}<span style="font-size:0.9rem">cm</span></div><div class="modal-stat-label">Waist</div><div style="font-size:0.7rem;color:var(--gray-400)">${m.waist_in}"</div></div>
+    <div class="modal-stat"><div class="modal-stat-num">${m.hips}<span style="font-size:0.9rem">cm</span></div><div class="modal-stat-label">Hips</div><div style="font-size:0.7rem;color:var(--gray-400)">${m.hips_in}"</div></div>
+    <div class="modal-stat"><div class="modal-stat-num">${m.shoes}<span style="font-size:0.9rem">mm</span></div><div class="modal-stat-label">Shoes</div><div style="font-size:0.7rem;color:var(--gray-400)">EU ${m.shoes_eu}</div></div>
+    <div class="modal-stat"><div class="modal-stat-num" style="font-size:1rem;text-transform:capitalize">${m.hair_color}</div><div class="modal-stat-label">Hair</div><div style="font-size:0.7rem;color:var(--gray-400)">${m.hair_length}</div></div>
+    <div class="modal-stat"><div class="modal-stat-num" style="font-size:1rem;text-transform:capitalize">${m.eye_color}</div><div class="modal-stat-label">Eyes</div></div>
     <div class="modal-stat"><div class="modal-stat-num">$${m.rate.toLocaleString()}</div><div class="modal-stat-label">Day Rate</div></div>`;
   document.getElementById("modalTags").innerHTML = m.workTypes.map(t => `<span class="modal-tag">${t}</span>`).join("");
   document.getElementById("modalLooks").innerHTML = m.looks.map(l => `<span class="modal-tag">${l}</span>`).join("");
