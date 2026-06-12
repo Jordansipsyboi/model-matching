@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Model Matching — Find the Right Face, Within Budget</title>
+<title>Model Matching — Find the Face</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -32,7 +32,7 @@
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
     display: flex; align-items: center; justify-content: space-between;
     padding: 1.5rem 4rem;
-    background: rgba(250,250,248,0.85);
+    background: rgba(255,255,255,0.85);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--gray-200);
   }
@@ -96,9 +96,9 @@
     inset: 0;
     background: linear-gradient(
       to bottom,
-      rgba(250,250,248,0.82) 0%,
-      rgba(250,250,248,0.65) 40%,
-      rgba(250,250,248,0.88) 100%
+      rgba(255,255,255,0.82) 0%,
+      rgba(255,255,255,0.65) 40%,
+      rgba(255,255,255,0.88) 100%
     );
     z-index: 1;
   }
@@ -131,14 +131,14 @@
     font-weight: 300; line-height: 1.05; letter-spacing: -0.01em;
     max-width: 900px; margin-bottom: 1.5rem;
     opacity: 0; animation: fadeUp 0.8s ease forwards 0.4s;
-    text-shadow: 0 2px 40px rgba(250,250,248,0.8);
+    text-shadow: 0 2px 40px rgba(255,255,255,0.8);
   }
   .hero-title em { font-style: italic; color: var(--accent); }
   .hero-sub {
     font-size: 1rem; color: var(--gray-600);
     max-width: 480px; line-height: 1.7; margin-bottom: 3rem;
     opacity: 0; animation: fadeUp 0.8s ease forwards 0.6s;
-    text-shadow: 0 1px 20px rgba(250,250,248,0.9);
+    text-shadow: 0 1px 20px rgba(255,255,255,0.9);
   }
   .hero-buttons {
     display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
@@ -153,14 +153,14 @@
   }
   .btn-primary:hover { background: var(--accent); border-color: var(--accent); }
   .btn-secondary {
-    background: rgba(250,250,248,0.7); color: var(--black);
+    background: rgba(255,255,255,0.7); color: var(--black);
     padding: 1rem 2.5rem; font-family: 'Space Grotesk', sans-serif;
     font-size: 0.8rem; font-weight: 400; letter-spacing: 0.12em;
     text-transform: uppercase; text-decoration: none;
     border: 1px solid var(--gray-200); transition: all 0.25s; cursor: pointer;
     backdrop-filter: blur(4px);
   }
-  .btn-secondary:hover { border-color: var(--black); background: rgba(250,250,248,0.9); }
+  .btn-secondary:hover { border-color: var(--black); background: rgba(255,255,255,0.9); }
 
   .hero-scroll {
     position: absolute; bottom: 2.5rem; left: 50%;
@@ -316,8 +316,8 @@
   <!-- Content -->
   <div class="hero-content">
     <p class="hero-eyebrow">AI-Powered Casting Platform</p>
-    <h1 class="hero-title">Find the <em>right face.</em><br>Within your budget.</h1>
-    <p class="hero-sub">Upload a reference photo, set your budget, and instantly discover models who match your vision — without the endless back-and-forth.</p>
+    <h1 class="hero-title">Find<br><em>the face.</em></h1>
+    <p class="hero-sub">Upload a reference photo. Our AI surfaces the best visual matches from a curated database of agency-verified models — in seconds.</p>
     <div class="hero-buttons">
       <a href="/find-models" class="btn-primary">Find Models</a>
       <a href="/list-models" class="btn-secondary">List Your Models</a>
@@ -356,9 +356,9 @@
 <section class="problem" id="problem">
   <div>
     <p class="problem-label">The Problem</p>
-    <h2 class="problem-title">Casting shouldn't cost you <em>more</em> than your budget.</h2>
-    <p class="problem-text">Agencies spend days manually searching through model portfolios, only to find the perfect face is double the client's budget. The process is slow, expensive, and frustrating.</p>
-    <p class="problem-text">Model Matching solves this instantly. Upload a reference photo, set your budget, and our AI surfaces the best visual matches from a curated database of agency-verified models — in seconds.</p>
+    <h2 class="problem-title">Casting is <em>broken.</em></h2>
+    <p class="problem-text">Agencies spend days manually searching through model portfolios. The process is slow, expensive, and frustrating for everyone involved.</p>
+    <p class="problem-text">Model Matching fixes this. Upload a reference photo and our AI instantly surfaces the best visual matches from a curated database of agency-verified models — in seconds.</p>
   </div>
 </section>
 
@@ -377,19 +377,19 @@
         <p class="step-num">01</p>
         <div class="step-line"></div>
         <h3 class="step-title">Upload your reference</h3>
-        <p class="step-text">Share a photo of the look you're after and enter your casting budget. That's all we need to get started.</p>
+        <p class="step-text">Share a photo of the look you're after. That's all we need to get started.</p>
       </div>
       <div class="step">
         <p class="step-num">02</p>
         <div class="step-line"></div>
         <h3 class="step-title">AI finds your match</h3>
-        <p class="step-text">Our visual AI analyzes the reference and instantly surfaces models with similar looks from our verified agency database — filtered to your budget.</p>
+        <p class="step-text">Our AI analyzes the reference and instantly surfaces models with similar looks from our verified agency database.</p>
       </div>
       <div class="step">
         <p class="step-num">03</p>
         <div class="step-line"></div>
         <h3 class="step-title">Connect directly</h3>
-        <p class="step-text">Review your shortlist, see rates upfront, and reach out to agencies directly. No middlemen. No surprises.</p>
+        <p class="step-text">Review your shortlist and reach out to agencies directly. Fast, precise, done.</p>
       </div>
     </div>
   </div>
@@ -399,7 +399,7 @@
 <section class="cta-section" id="cta">
   <p class="cta-label">Get Started</p>
   <h2 class="cta-title">Ready to cast <em>smarter?</em></h2>
-  <p class="cta-text">Join agencies and brands who are saving time and budget on every casting. List your models for free, or start searching today.</p>
+  <p class="cta-text">Join agencies and brands already using Model Matching. List your models for free, or start searching today.</p>
   <div class="cta-buttons">
     <a href="/find-models" class="btn-primary">Find Models</a>
     <a href="/list-models" class="btn-secondary">List Your Models</a>
