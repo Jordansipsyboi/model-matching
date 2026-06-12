@@ -353,8 +353,9 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
                 continue
             # Try regex first (free), fall back to AI only if needed
             details = parse_profile_html(html, profile_url)
+            print(f"    Regex got: height={details.get('height')} chest={details.get('chest')} waist={details.get('waist')}")
             if not details or not details.get("height"):
-                print(f"    Regex found nothing, using AI fallback...")
+                print(f"    Using AI fallback...")
                 details = fetch_profile_details(html, profile_url)
             if not details or not details.get("english"):
                 continue
