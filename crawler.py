@@ -201,40 +201,41 @@ def parse_profile_html(html: str, profile_url: str) -> dict:
         if h1:
             result["english"] = h1.get_text(strip=True).upper()
 
-        # Height
-        m = re.search(r'height[\s:]*(\d{2,3})', text, re.I)
+        # Height — English or Korean (신장)
+        m = re.search(r'(?:height|신장|키)[\s:]*(\d{2,3})', text, re.I)
+        if not m:
+            m = re.search(r'\b(1[6-9]\d)\s*cm', text, re.I)
         if m:
             h = int(m.group(1))
-            # Convert ft'in" to cm if needed
             if h < 100:
                 ft_in = re.search(r"(\d)'(\d+)", text)
                 if ft_in:
                     h = round(int(ft_in.group(1)) * 30.48 + int(ft_in.group(2)) * 2.54)
             result["height"] = h
 
-        # Bust/Chest
-        for label in ["bust", "chest"]:
+        # Bust/Chest — English or Korean (가슴/버스트)
+        for label in [r'bust', r'chest', r'가슴', r'버스트']:
             m = re.search(rf'{label}[\s:]*(\d{{2,3}})', text, re.I)
             if m:
                 result["chest"] = int(m.group(1))
                 break
 
-        # Waist
-        m = re.search(r'waist[\s:]*(\d{2,3})', text, re.I)
+        # Waist — English or Korean (허리)
+        m = re.search(r'(?:waist|허리)[\s:]*(\d{2,3})', text, re.I)
         if m:
             result["waist"] = int(m.group(1))
 
-        # Hips
-        m = re.search(r'hips?[\s:]*(\d{2,3})', text, re.I)
+        # Hips — English or Korean (엉덩이/힙)
+        m = re.search(r'(?:hips?|엉덩이|힙)[\s:]*(\d{2,3})', text, re.I)
         if m:
             result["hips"] = int(m.group(1))
 
-        # Shoes — look for mm value first, then EU
-        m = re.search(r'shoes?[\s:]*(\d{3})', text, re.I)
+        # Shoes — mm first, then EU; Korean (발/신발)
+        m = re.search(r'(?:shoes?|발사이즈|발|신발)[\s:]*(\d{3})', text, re.I)
         if m:
             result["shoes"] = int(m.group(1))
         else:
-            m = re.search(r'shoes?[\s:]*(\d{2}(?:\.\d)?)', text, re.I)
+            m = re.search(r'(?:shoes?|발사이즈|발|신발)[\s:]*(\d{2}(?:\.\d)?)', text, re.I)
             if m:
                 eu = float(m.group(1))
                 result["shoes"] = round((eu + 1.5) / 0.667 * 10)
