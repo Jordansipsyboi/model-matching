@@ -250,10 +250,20 @@ def parse_profile_html(html: str, profile_url: str) -> dict:
             result["hair_color"] = m.group(1).strip().lower()
             result["hair_length"] = "medium"
 
-        # Eye color — stop at next keyword or end of short phrase
+        # Eye color — only capture 1-2 words, stop before "compcard" or other junk
         m = re.search(r'eyes?[\s:]*([a-z]+(?:\s+[a-z]+)?)', text, re.I)
         if m:
-            result["eye_color"] = m.group(1).strip().lower()
+            eye = m.group(1).strip().lower()
+            # Reject if it captured non-color words
+            if not any(bad in eye for bad in ["compcard", "comp", "card", "listed", "profile"]):
+                result["eye_color"] = eye
+
+        # Gender — infer from roster URL path
+        path = profile_url.lower()
+        if any(w in path for w in ["women", "female", "ladies"]):
+            result["gender"] = "female"
+        elif any(w in path for w in ["men", "male", "guys"]):
+            result["gender"] = "male"
 
         # Photo — try og:image first, then wp-content images, then any large img
         from urllib.parse import urlparse
@@ -378,7 +388,7 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
             model = {
                 "english": details.get("english", base.get("english", "")),
                 "korean": details.get("korean") or base.get("korean", ""),
-                "gender": base.get("gender", "female"),
+                "gender": details.get("gender") or base.get("gender", "female"),
                 "nationality": base.get("nationality", "other"),
                 "workTypes": base.get("workTypes", []),
                 "looks": base.get("looks", []),
