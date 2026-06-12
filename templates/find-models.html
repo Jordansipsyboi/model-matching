@@ -316,7 +316,7 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
 
     <!-- AGE -->
     <div class="filter-section">
-      <span class="filter-label required">Age Range</span>
+      <span class="filter-label">Age Range</span>
       <div style="display:flex; gap:0.5rem; align-items:center;">
         <input type="number" class="keyword-input" id="ageMin" placeholder="Min age" style="width:50%;" min="16" max="60" required>
         <span style="color:var(--gray-400); font-size:0.8rem;">–</span>
@@ -629,7 +629,7 @@ function applyFilters() {
   filteredModels = MODELS.filter(m => {
     // Keyword
     if (keyword) {
-      const searchable = `${m.english} ${m.korean} ${m.workTypes.join(" ")} ${m.looks.join(" ")}`.toLowerCase();
+      const searchable = `${m.english} ${m.korean} ${m.gender} ${m.nationality} ${m.hair_color} ${m.hair_length} ${m.eye_color} ${m.agency_name} ${m.workTypes.join(" ")} ${m.looks.join(" ")}`.toLowerCase();
       if (!searchable.includes(keyword)) return false;
     }
     // Height
