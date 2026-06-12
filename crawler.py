@@ -196,15 +196,11 @@ def parse_profile_html(html: str, profile_url: str) -> dict:
 
         result = {}
 
-        # Name — try h1, h2, then URL slug
-        for tag in ["h1", "h2", "h3"]:
-            el = soup.find(tag)
-            if el and el.get_text(strip=True):
-                result["english"] = el.get_text(strip=True).upper()
-                break
-        if not result.get("english"):
-            slug = profile_url.rstrip("/").split("/")[-1]
-            result["english"] = slug.replace("-", " ").replace("_", " ").upper()
+        # Name — use URL slug (most reliable across sites)
+        slug = profile_url.rstrip("/").split("/")[-1]
+        # Remove numeric IDs like "1741247" at the start
+        parts = [p for p in slug.replace("-", " ").replace("_", " ").split() if not p.isdigit()]
+        result["english"] = " ".join(parts).upper()
 
         # Height — English or Korean (신장)
         m = re.search(r'(?:height|신장|키)[\s:]*(\d{2,3})', text, re.I)
@@ -254,8 +250,8 @@ def parse_profile_html(html: str, profile_url: str) -> dict:
             result["hair_color"] = m.group(1).strip().lower()
             result["hair_length"] = "medium"
 
-        # Eye color
-        m = re.search(r'eyes?[\s:]*([a-z ]+?)(?:\s+\w+[\s:]|\s*$)', text, re.I)
+        # Eye color — stop at next keyword or end of short phrase
+        m = re.search(r'eyes?[\s:]*([a-z]+(?:\s+[a-z]+)?)', text, re.I)
         if m:
             result["eye_color"] = m.group(1).strip().lower()
 
