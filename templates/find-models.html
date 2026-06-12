@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find Models — Model Matching</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --black: #0a0a0a; --white: #fafaf8; --gray-100: #f0efe9; --gray-200: #d8d6ce; --gray-400: #9e9b90; --gray-600: #5c5a54; --accent: #c8a97e; --accent-dark: #a8895e; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--white); color: var(--black); font-family: 'DM Sans', sans-serif; font-weight: 300; overflow-x: hidden; }
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 4rem; background: rgba(250,250,248,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--gray-200); }
+  .nav-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--black); text-decoration: none; }
+  .nav-right { display: flex; align-items: center; gap: 2rem; }
+  .nav-back { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gray-600); text-decoration: none; transition: color 0.2s; }
+  .nav-back:hover { color: var(--black); }
+  .nav-cta { background: var(--black); color: var(--white); padding: 0.6rem 1.4rem; font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; transition: background 0.2s; }
+  .nav-cta:hover { background: var(--accent); }
+  .hero { padding: 10rem 4rem 4rem; text-align: center; position: relative; }
+  .hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse 60% 60% at 50% 0%, rgba(200,169,126,0.07) 0%, transparent 70%); pointer-events: none; }
+  .hero-eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent); margin-bottom: 1.5rem; opacity: 0; animation: fadeUp 0.7s ease forwards 0.1s; }
+  .hero-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(3rem, 6vw, 5rem); font-weight: 300; line-height: 1.05; margin-bottom: 1rem; opacity: 0; animation: fadeUp 0.7s ease forwards 0.2s; }
+  .hero-title em { font-style: italic; color: var(--accent); }
+  .hero-sub { font-size: 0.95rem; color: var(--gray-600); max-width: 420px; margin: 0 auto; line-height: 1.7; opacity: 0; animation: fadeUp 0.7s ease forwards 0.3s; }
+  .search-section { padding: 4rem; max-width: 820px; margin: 0 auto; opacity: 0; animation: fadeUp 0.7s ease forwards 0.4s; }
+  .search-card { background: var(--white); border: 1px solid var(--gray-200); padding: 3rem; }
+  .upload-area { border: 1.5px dashed var(--gray-200); padding: 3rem 2rem; text-align: center; cursor: pointer; transition: all 0.25s; margin-bottom: 2rem; background: var(--gray-100); }
+  .upload-area:hover { border-color: var(--accent); background: rgba(200,169,126,0.04); }
+  .upload-area.dragover { border-color: var(--accent); background: rgba(200,169,126,0.08); }
+  .upload-icon { width: 48px; height: 48px; margin: 0 auto 1rem; opacity: 0.4; }
+  .upload-title { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-weight: 400; margin-bottom: 0.4rem; color: var(--black); }
+  .upload-sub { font-size: 0.78rem; color: var(--gray-400); letter-spacing: 0.05em; }
+  .upload-btn { display: inline-block; margin-top: 1rem; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); border-bottom: 1px solid var(--accent); padding-bottom: 2px; cursor: pointer; }
+  #file-input { display: none; }
+  .preview-img { max-height: 200px; max-width: 100%; object-fit: contain; display: none; margin: 0 auto; border: 1px solid var(--gray-200); }
+  .filters { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+  .filter-group { display: flex; flex-direction: column; gap: 0.4rem; }
+  .filter-label { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gray-400); }
+  .filter-input-wrap { display: flex; border: 1px solid var(--gray-200); background: var(--white); transition: border-color 0.2s; }
+  .filter-input-wrap:focus-within { border-color: var(--accent); }
+  .filter-input-wrap select, .filter-input-wrap input { border: none; outline: none; background: transparent; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 300; color: var(--black); padding: 0.7rem 0.9rem; width: 100%; cursor: pointer; appearance: none; }
+  .currency-select { width: auto !important; min-width: 70px; border-right: 1px solid var(--gray-200) !important; color: var(--accent) !important; font-weight: 500 !important; padding-right: 0.5rem !important; }
+  .search-btn { width: 100%; background: var(--black); color: var(--white); border: none; padding: 1.1rem; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; transition: background 0.25s; }
+  .search-btn:hover { background: var(--accent); }
+  .results-section { padding: 2rem 4rem 8rem; max-width: 1200px; margin: 0 auto; }
+  .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--gray-200); }
+  .results-title { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 300; }
+  .results-count { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gray-400); }
+  .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+  .model-card { background: var(--white); border: 1px solid var(--gray-200); overflow: hidden; cursor: pointer; transition: border-color 0.25s; position: relative; }
+  .model-card:hover { border-color: var(--accent); }
+  .model-card:hover .model-overlay { opacity: 1; }
+  .model-img { width: 100%; aspect-ratio: 3/4; background: var(--gray-100); position: relative; overflow: hidden; }
+  .model-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .model-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10,10,10,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.25s; }
+  .model-overlay-btn { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--white); border: 1px solid rgba(255,255,255,0.5); padding: 0.6rem 1.2rem; }
+  .match-badge { position: absolute; top: 1rem; right: 1rem; background: var(--accent); color: var(--white); font-size: 0.65rem; font-weight: 500; letter-spacing: 0.1em; padding: 0.3rem 0.6rem; }
+  .model-info { padding: 1.2rem 1.4rem; border-top: 1px solid var(--gray-200); }
+  .model-name { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 400; margin-bottom: 0.2rem; }
+  .model-agency { font-size: 0.72rem; color: var(--accent); letter-spacing: 0.08em; margin-bottom: 0.8rem; }
+  .model-meta { display: flex; justify-content: space-between; align-items: center; }
+  .model-rate { font-size: 0.8rem; font-weight: 500; color: var(--black); }
+  .model-region { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-400); background: var(--gray-100); padding: 0.2rem 0.6rem; }
+  .no-results { text-align: center; padding: 4rem 2rem; color: var(--gray-400); font-size: 0.9rem; }
+  .modal-bg { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10,10,10,0.7); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 2rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .modal-bg.active { opacity: 1; pointer-events: all; }
+  .modal { background: var(--white); max-width: 700px; width: 100%; display: grid; grid-template-columns: 1fr 1fr; max-height: 90vh; overflow-y: auto; }
+  .modal-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+  .modal-info { padding: 2.5rem 2rem; display: flex; flex-direction: column; gap: 1.2rem; }
+  .modal-close { align-self: flex-end; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--gray-400); line-height: 1; padding: 0; transition: color 0.2s; }
+  .modal-close:hover { color: var(--black); }
+  .modal-match { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); }
+  .modal-name { font-family: 'Cormorant Garamond', serif; font-size: 2rem; font-weight: 300; line-height: 1.1; }
+  .modal-agency-text { font-size: 0.8rem; color: var(--accent); letter-spacing: 0.08em; }
+  .modal-divider { border: none; border-top: 1px solid var(--gray-200); }
+  .modal-row { display: flex; justify-content: space-between; font-size: 0.8rem; }
+  .modal-row-label { color: var(--gray-400); }
+  .modal-row-val { font-weight: 500; color: var(--black); }
+  .modal-contact { margin-top: auto; background: var(--black); color: var(--white); border: none; padding: 0.9rem; font-family: 'DM Sans', sans-serif; font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; transition: background 0.2s; width: 100%; }
+  .modal-contact:hover { background: var(--accent); }
+  footer { border-top: 1px solid var(--gray-200); padding: 3rem 4rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem; }
+  .footer-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--black); }
+  .footer-links { display: flex; gap: 2rem; list-style: none; flex-wrap: wrap; }
+  .footer-links a { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-400); text-decoration: none; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--black); }
+  .footer-copy { font-size: 0.75rem; color: var(--gray-400); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  @media (max-width: 900px) {
+    nav { padding: 1.2rem 1.5rem; }
+    .hero { padding: 8rem 1.5rem 3rem; }
+    .search-section { padding: 2rem 1.5rem; }
+    .search-card { padding: 1.5rem; }
+    .filters { grid-template-columns: 1fr; }
+    .results-section { padding: 2rem 1.5rem 5rem; }
+    .results-grid { grid-template-columns: repeat(2, 1fr); }
+    .modal { grid-template-columns: 1fr; }
+    .modal-img { aspect-ratio: 4/3; }
+    footer { padding: 2rem 1.5rem; flex-direction: column; align-items: flex-start; }
+  }
+  @media (max-width: 560px) { .results-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+ 
+<nav>
+  <a href="/" class="nav-logo">Model Matching</a>
+  <div class="nav-right">
+    <a href="/" class="nav-back">← Back</a>
+    <a href="#" class="nav-cta">List Your Models</a>
+  </div>
+</nav>
+ 
+<section class="hero">
+  <p class="hero-eyebrow">AI-Powered Search</p>
+  <h1 class="hero-title">Find your <em>perfect match.</em></h1>
+  <p class="hero-sub">Upload a reference photo, set your budget, and let our AI find the closest matches from our verified model database.</p>
+</section>
+ 
+<section class="search-section">
+  <div class="search-card">
+    <div class="upload-area" id="upload-area">
+      <svg class="upload-icon" viewBox="0 0 48 48" fill="none">
+        <rect x="4" y="4" width="40" height="40" rx="2" stroke="#0a0a0a" stroke-width="1.5"/>
+        <circle cx="16" cy="18" r="4" stroke="#0a0a0a" stroke-width="1.5"/>
+        <path d="M4 34L14 24L20 30L30 20L44 34" stroke="#0a0a0a" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+      <img class="preview-img" id="preview-img" alt="Preview"/>
+      <p class="upload-title">Upload reference photo</p>
+      <p class="upload-sub">Drag & drop or click to browse · JPG, PNG, WEBP</p>
+      <span class="upload-btn">Choose file</span>
+      <input type="file" id="file-input" accept="image/*">
+    </div>
+    <div class="filters">
+      <div class="filter-group">
+        <label class="filter-label">Budget</label>
+        <div class="filter-input-wrap">
+          <select class="currency-select" id="currency">
+            <option>USD</option><option>KRW</option><option>CNY</option><option>JPY</option>
+          </select>
+          <input type="number" placeholder="e.g. 5,000" id="budget">
+        </div>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Region</label>
+        <div class="filter-input-wrap">
+          <select id="region">
+            <option value="">All Regions</option>
+            <option value="East Asia">East Asia</option>
+            <option value="Korea">Korea</option>
+            <option value="China">China</option>
+            <option value="Japan">Japan</option>
+            <option value="Southeast Asia">Southeast Asia</option>
+            <option value="Europe">Europe</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Gender</label>
+        <div class="filter-input-wrap">
+          <select id="gender">
+            <option value="">All</option>
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <button class="search-btn" onclick="runSearch()">Find Matches</button>
+  </div>
+</section>
+ 
+<section class="results-section" id="results" style="display:none">
+  <div class="results-header">
+    <h2 class="results-title">Matching models</h2>
+    <span class="results-count" id="results-count">0 results found</span>
+  </div>
+  <div class="results-grid" id="results-grid"></div>
+  <div class="no-results" id="no-results" style="display:none">No models match your filters. Try adjusting your region or gender.</div>
+</section>
+ 
+<div class="modal-bg" id="modal-bg" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <img class="modal-img" id="modal-img" src="" alt="">
+    <div class="modal-info">
+      <button class="modal-close" onclick="closeModalBtn()">✕</button>
+      <p class="modal-match" id="modal-match"></p>
+      <h2 class="modal-name" id="modal-name"></h2>
+      <p class="modal-agency-text" id="modal-agency"></p>
+      <hr class="modal-divider">
+      <div class="modal-row"><span class="modal-row-label">Day Rate</span><span class="modal-row-val" id="modal-rate"></span></div>
+      <div class="modal-row"><span class="modal-row-label">Region</span><span class="modal-row-val" id="modal-region"></span></div>
+      <div class="modal-row"><span class="modal-row-label">Gender</span><span class="modal-row-val" id="modal-gender"></span></div>
+      <div class="modal-row"><span class="modal-row-label">Agency</span><span class="modal-row-val" id="modal-agency2"></span></div>
+      <button class="modal-contact">Contact Agency</button>
+    </div>
+  </div>
+</div>
+ 
+<footer>
+  <div class="footer-logo">Model Matching</div>
+  <ul class="footer-links">
+    <li><a href="#">How it works</a></li>
+    <li><a href="#">For agencies</a></li>
+    <li><a href="#">For brands</a></li>
+    <li><a href="#">Contact</a></li>
+    <li><a href="#">Terms</a></li>
+  </ul>
+  <p class="footer-copy">© 2025 Model Matching</p>
+</footer>
+ 
+<script>
+const models = [
+  { name: "Ji Yeon Park", agency: "ESTEEM Models", city: "Seoul", rate: "$3,200 / day", region: "Korea", gender: "Female", match: "98%", img: "https://randomuser.me/api/portraits/women/44.jpg" },
+  { name: "Meilin Zhang", agency: "IMG Models", city: "Shanghai", rate: "$4,800 / day", region: "China", gender: "Female", match: "95%", img: "https://randomuser.me/api/portraits/women/68.jpg" },
+  { name: "Yuna Ishikawa", agency: "Satoru Japan", city: "Tokyo", rate: "$2,900 / day", region: "Japan", gender: "Female", match: "91%", img: "https://randomuser.me/api/portraits/women/90.jpg" },
+  { name: "Seo Hyun Lim", agency: "YG Plus", city: "Seoul", rate: "$2,100 / day", region: "Korea", gender: "Female", match: "88%", img: "https://randomuser.me/api/portraits/women/12.jpg" },
+  { name: "Xiao Wen Ju", agency: "Next Models", city: "Beijing", rate: "$3,600 / day", region: "China", gender: "Female", match: "85%", img: "https://randomuser.me/api/portraits/women/26.jpg" },
+  { name: "Aiko Tanaka", agency: "Donna Models", city: "Tokyo", rate: "$1,800 / day", region: "Japan", gender: "Female", match: "82%", img: "https://randomuser.me/api/portraits/women/55.jpg" },
+  { name: "Min Jun Lee", agency: "SM C&C", city: "Seoul", rate: "$2,500 / day", region: "Korea", gender: "Male", match: "79%", img: "https://randomuser.me/api/portraits/men/32.jpg" },
+  { name: "Wei Chen", agency: "Mega Model", city: "Shanghai", rate: "$3,100 / day", region: "China", gender: "Male", match: "76%", img: "https://randomuser.me/api/portraits/men/45.jpg" },
+  { name: "Haruki Sato", agency: "Zucca Models", city: "Tokyo", rate: "$2,200 / day", region: "Japan", gender: "Male", match: "73%", img: "https://randomuser.me/api/portraits/men/67.jpg" },
+  { name: "Sofia Laurent", agency: "Elite Model", city: "Paris", rate: "$5,500 / day", region: "Europe", gender: "Female", match: "70%", img: "https://randomuser.me/api/portraits/women/33.jpg" },
+  { name: "Priya Sharma", agency: "Storm Models", city: "Singapore", rate: "$2,800 / day", region: "Southeast Asia", gender: "Female", match: "67%", img: "https://randomuser.me/api/portraits/women/77.jpg" },
+  { name: "Kai Park", agency: "Cube Entertainment", city: "Seoul", rate: "$1,900 / day", region: "Korea", gender: "Male", match: "64%", img: "https://randomuser.me/api/portraits/men/22.jpg" },
+];
+ 
+const uploadArea = document.getElementById('upload-area');
+const fileInput = document.getElementById('file-input');
+const previewImg = document.getElementById('preview-img');
+ 
+uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', (e) => { e.preventDefault(); uploadArea.classList.remove('dragover'); const file = e.dataTransfer.files[0]; if (file && file.type.startsWith('image/')) handleFile(file); });
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+ 
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    previewImg.src = e.target.result;
+    previewImg.style.display = 'block';
+    uploadArea.querySelector('.upload-icon').style.display = 'none';
+    uploadArea.querySelector('.upload-title').textContent = 'Photo uploaded ✓';
+    uploadArea.querySelector('.upload-sub').textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+}
+ 
+function runSearch() {
+  const regionFilter = document.getElementById('region').value;
+  const genderFilter = document.getElementById('gender').value;
+ 
+  let filtered = models.filter(m => {
+    const regionMatch = !regionFilter || m.region === regionFilter;
+    const genderMatch = !genderFilter || m.gender === genderFilter;
+    return regionMatch && genderMatch;
+  });
+ 
+  const grid = document.getElementById('results-grid');
+  const noResults = document.getElementById('no-results');
+  const count = document.getElementById('results-count');
+  const resultsSection = document.getElementById('results');
+ 
+  resultsSection.style.display = 'block';
+ 
+  if (filtered.length === 0) {
+    grid.style.display = 'none';
+    noResults.style.display = 'block';
+    count.textContent = '0 results found';
+  } else {
+    grid.style.display = 'grid';
+    noResults.style.display = 'none';
+    count.textContent = filtered.length + ' result' + (filtered.length > 1 ? 's' : '') + ' found';
+    grid.innerHTML = filtered.map(m => `
+      <div class="model-card" onclick="openModal(${models.indexOf(m)})">
+        <div class="model-img">
+          <img src="${m.img}" alt="${m.name}">
+          <div class="model-overlay"><span class="model-overlay-btn">View Profile</span></div>
+          <div class="match-badge">${m.match} match</div>
+        </div>
+        <div class="model-info">
+          <p class="model-name">${m.name}</p>
+          <p class="model-agency">${m.agency} · ${m.city}</p>
+          <div class="model-meta">
+            <span class="model-rate">${m.rate}</span>
+            <span class="model-region">${m.region}</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+ 
+  resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+ 
+function openModal(index) {
+  const m = models[index];
+  document.getElementById('modal-img').src = m.img;
+  document.getElementById('modal-match').textContent = m.match + ' visual match';
+  document.getElementById('modal-name').textContent = m.name;
+  document.getElementById('modal-agency').textContent = m.agency + ' · ' + m.city;
+  document.getElementById('modal-rate').textContent = m.rate;
+  document.getElementById('modal-region').textContent = m.region;
+  document.getElementById('modal-gender').textContent = m.gender;
+  document.getElementById('modal-agency2').textContent = m.agency;
+  document.getElementById('modal-bg').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+ 
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-bg')) {
+    document.getElementById('modal-bg').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+ 
+function closeModalBtn() {
+  document.getElementById('modal-bg').classList.remove('active');
+  document.body.style.overflow = '';
+}
+</script>
+</body>
+</html>
