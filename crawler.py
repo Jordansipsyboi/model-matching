@@ -78,9 +78,9 @@ Return ONLY the JSON object. No explanation."""
 
 # URL patterns that likely lead to model roster pages
 ROSTER_PATTERNS = [
-    "women", "men", "woman", "man", "model", "talent", "roster",
+    "women", "men", "woman", "man", "models", "talent", "roster",
     "asian", "international", "board", "new_face", "newface",
-    "female", "male", "portfolio"
+    "female", "male", "portfolio", "ladies", "guys"
 ]
 
 
@@ -119,12 +119,13 @@ async def fetch_page_html(url: str) -> tuple[str, list, list]:
 
                 path = urlparse(full).path.rstrip("/")
 
-                # Profile page: starts with current roster path + one more slug
-                # e.g. current=/asian_women, profile=/asian_women/kim-seojin
+                # Profile page: starts with current roster path + more path segments
+                # Handles both /asian_women/kim-seojin/ and /models/men/1741247/yoon-se-chan
                 if current_path and path.startswith(current_path + "/"):
                     remainder = path[len(current_path)+1:]
-                    # Only one level deep (no further slashes)
-                    if remainder and "/" not in remainder:
+                    # Between 1 and 3 levels deeper (covers numeric ID + slug patterns)
+                    depth = len([s for s in remainder.split("/") if s])
+                    if remainder and 1 <= depth <= 3:
                         profile_urls.append(full)
                 # Roster page: matches known patterns but not a profile
                 elif any(p in path.lower() for p in ROSTER_PATTERNS):
