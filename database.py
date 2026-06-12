@@ -65,6 +65,20 @@ def init_db():
     conn = get_connection()
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS agencies (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            agency_name   TEXT NOT NULL,
+            agency_website TEXT NOT NULL,
+            contact_name  TEXT NOT NULL,
+            contact_email TEXT NOT NULL,
+            market        TEXT NOT NULL,
+            notes         TEXT,
+            submitted_at  TEXT DEFAULT (datetime('now'))
+        )
+        """
+    )
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS models (
             id          TEXT PRIMARY KEY,
             korean      TEXT,
@@ -145,6 +159,19 @@ def _row_to_model(row):
         "hips_in": _cm_to_in(hips),
         "shoes_eu": _mm_to_eu(shoes),
     }
+
+
+def save_agency(agency_name, agency_website, contact_name, contact_email, market, notes):
+    conn = get_connection()
+    conn.execute(
+        """
+        INSERT INTO agencies (agency_name, agency_website, contact_name, contact_email, market, notes)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (agency_name, agency_website, contact_name, contact_email, market, notes),
+    )
+    conn.commit()
+    conn.close()
 
 
 def get_all_models():

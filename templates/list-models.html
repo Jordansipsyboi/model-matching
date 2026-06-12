@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>List Your Models — Model Matching</title>
+<title>List Your Agency — Model Matching</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -37,17 +37,14 @@ nav {
 
 .page { max-width: 860px; margin: 0 auto; padding: 3rem 4rem 6rem; }
 
-/* SECTION BLOCKS */
 .block { margin-bottom: 3rem; padding-bottom: 3rem; border-bottom: 1px solid var(--gray-200); }
 .block:last-of-type { border-bottom: none; }
 .block-label { font-size: 0.62rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.5rem; }
 .block-title { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 300; margin-bottom: 0.4rem; }
 .block-sub { font-size: 0.82rem; color: var(--gray-600); line-height: 1.7; margin-bottom: 2rem; }
 
-/* FIELDS */
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.2rem; }
 .field-grid.single { grid-template-columns: 1fr; }
-.field-grid.three { grid-template-columns: 1fr 1fr 1fr; }
 .field { display: flex; flex-direction: column; gap: 0.35rem; }
 .field label { font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gray-400); }
 .field input, .field select, .field textarea {
@@ -60,35 +57,12 @@ nav {
 .field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239e9b90'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; cursor: pointer; }
 .field textarea { resize: vertical; min-height: 90px; }
 
-/* UPLOAD ZONES */
-.upload-zone {
-  border: 1.5px dashed var(--gray-200); padding: 2.5rem;
-  text-align: center; cursor: pointer; transition: all 0.2s;
-  background: var(--gray-100); position: relative;
-}
-.upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: rgba(200,169,126,0.06); }
-.upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-.upload-icon { font-size: 2rem; color: var(--gray-400); margin-bottom: 0.5rem; }
-.upload-title { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; margin-bottom: 0.3rem; }
-.upload-sub { font-size: 0.75rem; color: var(--gray-400); margin-bottom: 0.5rem; }
-.upload-cta { font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); text-decoration: underline; }
+.how-it-works { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
+.step { padding: 1.5rem; border: 1px solid var(--gray-200); }
+.step-num { font-family: 'Cormorant Garamond', serif; font-size: 2rem; font-weight: 300; color: var(--accent); margin-bottom: 0.5rem; }
+.step-title { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.4rem; }
+.step-desc { font-size: 0.78rem; color: var(--gray-600); line-height: 1.6; }
 
-/* FILE LIST */
-.file-list { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-.file-item { display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 1rem; background: var(--white); border: 1px solid var(--gray-200); }
-.file-item-name { font-size: 0.8rem; color: var(--black); }
-.file-item-size { font-size: 0.72rem; color: var(--gray-400); }
-.file-item-remove { background: none; border: none; color: var(--gray-400); cursor: pointer; font-size: 0.8rem; padding: 0 0.3rem; transition: color 0.2s; }
-.file-item-remove:hover { color: var(--black); }
-.file-count { font-size: 0.72rem; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 0.5rem; }
-
-/* PHOTO GRID */
-.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.4rem; margin-top: 0.8rem; }
-.photo-thumb { position: relative; aspect-ratio: 3/4; }
-.photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.photo-thumb-remove { position: absolute; top: 0.2rem; right: 0.2rem; background: var(--black); color: var(--white); border: none; width: 18px; height: 18px; font-size: 0.55rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-
-/* SUBMIT */
 .submit-wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 2rem; border-top: 1px solid var(--gray-200); flex-wrap: wrap; gap: 1rem; }
 .submit-note { font-size: 0.78rem; color: var(--gray-400); line-height: 1.6; max-width: 380px; }
 .submit-note span { color: var(--black); }
@@ -96,7 +70,9 @@ nav {
 .btn-submit:hover { background: var(--accent-dark); }
 .btn-submit:disabled { background: var(--gray-200); color: var(--gray-400); cursor: not-allowed; }
 
-/* SUCCESS */
+.error-banner { display: none; background: #fff0f0; border: 1px solid #ffcccc; color: #c00; padding: 0.75rem 1rem; font-size: 0.8rem; margin-bottom: 1.2rem; }
+.error-banner.visible { display: block; }
+
 .success { display: none; text-align: center; padding: 5rem 2rem; }
 .success.show { display: block; animation: fadeUp 0.5s ease; }
 .success-icon { font-size: 2.5rem; margin-bottom: 1.5rem; color: var(--accent); }
@@ -116,7 +92,8 @@ footer { border-top: 1px solid var(--gray-200); padding: 2.5rem 4rem; display: f
   nav { padding: 1.2rem 1.5rem; }
   .hero { padding: 7rem 1.5rem 3rem; }
   .page { padding: 2rem 1.5rem 4rem; }
-  .field-grid, .field-grid.three { grid-template-columns: 1fr; }
+  .field-grid { grid-template-columns: 1fr; }
+  .how-it-works { grid-template-columns: 1fr; }
   footer { padding: 2rem 1.5rem; flex-direction: column; gap: 1rem; }
 }
 </style>
@@ -133,26 +110,53 @@ footer { border-top: 1px solid var(--gray-200); padding: 2.5rem 4rem; display: f
 
 <div class="hero">
   <p class="hero-eyebrow">For Agencies & Management</p>
-  <h1 class="hero-title">List your talent.<br><em>Reach every brand.</em></h1>
-  <p class="hero-sub">Submit your agency details and upload your full model roster. Our team will review and publish your listing within 48 hours.</p>
+  <h1 class="hero-title">Get your talent<br><em>discovered.</em></h1>
+  <p class="hero-sub">Register your agency and we'll automatically sync your model roster. Brands searching on Model Matching will find your talent instantly.</p>
 </div>
 
 <div class="page" id="mainForm">
 
+  <!-- HOW IT WORKS -->
+  <div class="block">
+    <p class="block-label">How It Works</p>
+    <h2 class="block-title">Simple. Automatic. Always up to date.</h2>
+    <p class="block-sub">No manual uploads. No comp card submissions. Just register once and we handle the rest.</p>
+
+    <div class="how-it-works">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-title">Register</div>
+        <div class="step-desc">Submit your agency name, website, and contact info below.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-title">We Sync</div>
+        <div class="step-desc">Our system automatically imports your model roster from your website.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-title">Stay Fresh</div>
+        <div class="step-desc">When you update your roster, we detect changes and keep your listing current.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- AGENCY INFO -->
   <div class="block">
-    <p class="block-label">01 — Agency</p>
-    <h2 class="block-title">Agency Information</h2>
-    <p class="block-sub">Tell us about your agency so brands can find and contact you directly.</p>
+    <p class="block-label">Agency Details</p>
+    <h2 class="block-title">Tell us about your agency</h2>
+    <p class="block-sub">We'll use your website URL to import your model roster. Make sure it's the page where your models are listed.</p>
+
+    <div id="errorBanner" class="error-banner"></div>
 
     <div class="field-grid">
       <div class="field">
         <label>Agency Name *</label>
-        <input type="text" id="agencyName" placeholder="e.g. SM C&C, YG Kplus...">
+        <input type="text" id="agencyName" placeholder="e.g. SM C&C, YG Kplus, MORPH...">
       </div>
       <div class="field">
-        <label>Website</label>
-        <input type="text" id="agencyWebsite" placeholder="https://youragency.com">
+        <label>Agency Website (Roster URL) *</label>
+        <input type="url" id="agencyWebsite" placeholder="https://youragency.com/models">
       </div>
     </div>
 
@@ -195,47 +199,16 @@ footer { border-top: 1px solid var(--gray-200); padding: 2.5rem 4rem; display: f
 
     <div class="field-grid single">
       <div class="field">
-        <label>Agency Bio</label>
-        <textarea id="agencyBio" placeholder="Brief description of your agency, specialties, notable clients..."></textarea>
-      </div>
-    </div>
-  </div>
-
-  <!-- COMP CARDS -->
-  <div class="block">
-    <p class="block-label">02 — Models</p>
-    <h2 class="block-title">Upload Comp Cards</h2>
-    <p class="block-sub">Drop all your model comp cards here at once — PDF or image per model. Our system will extract each model's photo and measurements automatically.</p>
-
-    <div class="upload-zone" id="compZone">
-      <input type="file" id="compInput" accept=".pdf,image/*" multiple onchange="handleComps(event)">
-      <div class="upload-icon">📄</div>
-      <p class="upload-title">Drop comp cards here</p>
-      <p class="upload-sub">PDF or image per model · Multiple files · e.g. kim_jae_young.pdf</p>
-      <span class="upload-cta">Browse files</span>
-    </div>
-    <div class="file-list" id="compFileList"></div>
-    <p class="file-count" id="compCount" style="display:none;"></p>
-  </div>
-
-  <!-- ADDITIONAL INFO -->
-  <div class="block">
-    <p class="block-label">03 — Notes</p>
-    <h2 class="block-title">Anything else?</h2>
-    <p class="block-sub">Any special requirements, preferred contact times, or notes for our team.</p>
-
-    <div class="field-grid single">
-      <div class="field">
-        <label>Notes for our team</label>
-        <textarea id="notes" placeholder="e.g. We prefer email contact, our models are available for international travel, etc."></textarea>
+        <label>Additional Notes</label>
+        <textarea id="notes" placeholder="Anything else we should know — preferred contact times, special requirements, etc."></textarea>
       </div>
     </div>
   </div>
 
   <!-- SUBMIT -->
   <div class="submit-wrap">
-    <p class="submit-note">By submitting you agree to our terms. Your listing will be reviewed within <span>48 hours</span> and you'll receive a confirmation email.</p>
-    <button class="btn-submit" id="submitBtn" onclick="submitForm()">Submit Listing →</button>
+    <p class="submit-note">By submitting you confirm you have the rights to list your agency's talent. We'll review your request within <span>48 hours</span> and email you when you're live.</p>
+    <button class="btn-submit" id="submitBtn" onclick="submitForm()">Register Agency →</button>
   </div>
 
 </div>
@@ -243,8 +216,8 @@ footer { border-top: 1px solid var(--gray-200); padding: 2.5rem 4rem; display: f
 <!-- SUCCESS -->
 <div class="success" id="successState">
   <div class="success-icon">✦</div>
-  <h2 class="success-title">You're <em>submitted.</em></h2>
-  <p class="success-sub">We've received your agency and roster. Our team will review your listing and reach out within 48 hours at the email you provided.</p>
+  <h2 class="success-title">You're <em>registered.</em></h2>
+  <p class="success-sub">We've received your agency details. Our team will review your request and reach out within 48 hours at the email you provided. Once approved, your models will appear in search automatically.</p>
   <a href="/find-models" class="btn-outline">Browse Models →</a>
 </div>
 
@@ -254,55 +227,26 @@ footer { border-top: 1px solid var(--gray-200); padding: 2.5rem 4rem; display: f
 </footer>
 
 <script>
-// COMP CARDS
-function handleComps(event) {
-  const files = Array.from(event.target.files);
-  const list = document.getElementById('compFileList');
-  const count = document.getElementById('compCount');
-  files.forEach(file => {
-    const item = document.createElement('div');
-    item.className = 'file-item';
-    const size = file.size > 1024*1024 ? (file.size/1024/1024).toFixed(1)+'MB' : (file.size/1024).toFixed(0)+'KB';
-    const icon = file.type.startsWith('image/') ? '🖼' : '📄';
-    item.innerHTML = `
-      <span class="file-item-name">${icon} ${file.name}</span>
-      <span class="file-item-size">${size}</span>
-      <button class="file-item-remove" onclick="this.parentElement.remove(); updateCompCount()">✕</button>
-    `;
-    list.appendChild(item);
-  });
-  updateCompCount();
-}
-
-function updateCompCount() {
-  const count = document.getElementById('compCount');
-  const total = document.querySelectorAll('#compFileList .file-item').length;
-  count.style.display = total > 0 ? 'block' : 'none';
-  count.textContent = `${total} comp card${total !== 1 ? 's' : ''} ready to upload`;
-}
-
-// DRAG AND DROP
-function setupDrop(zoneId, handler) {
-  const zone = document.getElementById(zoneId);
-  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-  zone.addEventListener('drop', e => {
-    e.preventDefault();
-    zone.classList.remove('dragover');
-    handler({ target: { files: e.dataTransfer.files } });
-  });
-}
-setupDrop('compZone', handleComps);
-
-// SUBMIT
 function submitForm() {
-  const name = document.getElementById('agencyName').value.trim();
-  const email = document.getElementById('contactEmail').value.trim();
-  const contact = document.getElementById('contactName').value.trim();
-  const market = document.getElementById('agencyMarket').value;
+  const agencyName    = document.getElementById('agencyName').value.trim();
+  const agencyWebsite = document.getElementById('agencyWebsite').value.trim();
+  const contactName   = document.getElementById('contactName').value.trim();
+  const contactEmail  = document.getElementById('contactEmail').value.trim();
+  const market        = document.getElementById('agencyMarket').value;
 
-  if (!name || !email || !contact || !market) {
-    alert('Please fill in Agency Name, Contact Name, Email and Market before submitting.');
+  const banner = document.getElementById('errorBanner');
+  banner.classList.remove('visible');
+
+  const missing = [];
+  if (!agencyName)    missing.push('Agency Name');
+  if (!agencyWebsite) missing.push('Agency Website');
+  if (!contactName)   missing.push('Contact Name');
+  if (!contactEmail)  missing.push('Contact Email');
+  if (!market)        missing.push('Primary Market');
+
+  if (missing.length) {
+    banner.textContent = 'Please fill in: ' + missing.join(', ');
+    banner.classList.add('visible');
     return;
   }
 
@@ -310,21 +254,34 @@ function submitForm() {
   btn.disabled = true;
   btn.textContent = 'Submitting...';
 
-  // TODO: Replace with real API call
-  // const formData = new FormData();
-  // formData.append('agencyName', name);
-  // formData.append('contactEmail', email);
-  // ... attach files
-  // fetch('/api/submit-agency', { method: 'POST', body: formData })
-  //   .then(res => res.json())
-  //   .then(() => showSuccess())
+  const formData = new FormData();
+  formData.append('agencyName',    agencyName);
+  formData.append('agencyWebsite', agencyWebsite);
+  formData.append('contactName',   contactName);
+  formData.append('contactEmail',  contactEmail);
+  formData.append('agencyMarket',  market);
+  formData.append('notes',         document.getElementById('notes').value.trim());
 
-  // Simulated for now
-  setTimeout(() => {
-    document.getElementById('mainForm').style.display = 'none';
-    document.getElementById('successState').classList.add('show');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, 1200);
+  fetch('/api/submit-agency', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        document.getElementById('mainForm').style.display = 'none';
+        document.getElementById('successState').classList.add('show');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        banner.textContent = data.error || 'Something went wrong. Please try again.';
+        banner.classList.add('visible');
+        btn.disabled = false;
+        btn.textContent = 'Register Agency →';
+      }
+    })
+    .catch(() => {
+      banner.textContent = 'Network error. Please try again.';
+      banner.classList.add('visible');
+      btn.disabled = false;
+      btn.textContent = 'Register Agency →';
+    });
 }
 </script>
 </body>

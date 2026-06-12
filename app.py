@@ -32,16 +32,18 @@ def api_models():
 
 @app.route("/api/submit-agency", methods=["POST"])
 def submit_agency():
-    agency_name = request.form.get("agencyName", "").strip()
-    contact_name = request.form.get("contactName", "").strip()
-    contact_email = request.form.get("contactEmail", "").strip()
-    market = request.form.get("agencyMarket", "").strip()
+    agency_name    = request.form.get("agencyName", "").strip()
+    agency_website = request.form.get("agencyWebsite", "").strip()
+    contact_name   = request.form.get("contactName", "").strip()
+    contact_email  = request.form.get("contactEmail", "").strip()
+    market         = request.form.get("agencyMarket", "").strip()
+    notes          = request.form.get("notes", "").strip()
 
-    if not all([agency_name, contact_name, contact_email, market]):
+    if not all([agency_name, agency_website, contact_name, contact_email, market]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    # TODO: persist to database / send notification email
-    return jsonify({"status": "ok", "message": "Listing received"})
+    database.save_agency(agency_name, agency_website, contact_name, contact_email, market, notes)
+    return jsonify({"status": "ok", "message": "Agency registered"})
 
 
 if __name__ == "__main__":
