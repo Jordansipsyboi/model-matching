@@ -324,23 +324,7 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
       </div>
     </div>
 
-    <!-- BUDGET -->
-    <div class="filter-section">
-      <span class="filter-label required">Budget</span>
-      <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.6rem;">
-        <select class="filter-select" id="currencySelect" style="width:90px; flex-shrink:0;" required>
-          <option value="USD">USD</option>
-          <option value="KRW">KRW</option>
-          <option value="EUR">EUR</option>
-          <option value="JPY">JPY</option>
-          <option value="GBP">GBP</option>
-          <option value="CNY">CNY</option>
-        </select>
-        <input type="number" class="keyword-input" id="budgetMin" placeholder="Min" style="width:50%;" min="0" required>
-        <span style="color:var(--gray-400); font-size:0.8rem;">–</span>
-        <input type="number" class="keyword-input" id="budgetMax" placeholder="Max" style="width:50%;" min="0" required>
-      </div>
-    </div>
+
 
     <!-- GENDER -->
     <div class="filter-section">
@@ -569,9 +553,7 @@ function clearValidationStates() {
     document.getElementById("lookChips"),
     document.getElementById("ageMin"),
     document.getElementById("ageMax"),
-    document.getElementById("currencySelect"),
-    document.getElementById("budgetMin"),
-    document.getElementById("budgetMax"),
+
     document.getElementById("genderChips"),
     document.getElementById("nationalityChips"),
     document.getElementById("hairChips")
@@ -583,8 +565,7 @@ function validateRequiredFields() {
 
   const missingFields = [];
   const photoInput = document.getElementById("photoInput");
-  const budgetMinInput = document.getElementById("budgetMin");
-  const budgetMaxInput = document.getElementById("budgetMax");
+
 
   if (!photoInput.files.length) {
     setErrorState(document.getElementById("uploadZone"));
@@ -596,23 +577,8 @@ function validateRequiredFields() {
     missingFields.push("work type");
   }
 
-  if (!budgetMinInput.value.trim() || !budgetMaxInput.value.trim()) {
-    setErrorState(budgetMinInput);
-    setErrorState(budgetMaxInput);
-    missingFields.push("budget range");
-  }
-
   if (missingFields.length) {
     showValidationBanner(`Please complete the required fields: ${missingFields.join(", ")}.`);
-    return false;
-  }
-
-  const budgetMin = parseInt(budgetMinInput.value, 10);
-  const budgetMax = parseInt(budgetMaxInput.value, 10);
-  if (budgetMin > budgetMax) {
-    setErrorState(budgetMinInput);
-    setErrorState(budgetMaxInput);
-    showValidationBanner("Please enter a valid budget range. The minimum budget cannot be greater than the maximum budget.");
     return false;
   }
 
@@ -641,7 +607,7 @@ function renderCards(models) {
       </div>
       <div class="card-info">
         <p class="card-name">${m.english}</p>
-        <p class="card-stats">${m.height}cm · ${m.chest}/${m.waist}/${m.hips} · $${m.rate.toLocaleString()}</p>
+        <p class="card-stats">${m.height}cm · ${m.chest}/${m.waist}/${m.hips}</p>
         <div class="card-tags">${tags}</div>
       </div>
     </div>`;
@@ -663,10 +629,7 @@ function applyFilters() {
   const ageMaxRaw = document.getElementById("ageMax").value;
   const ageMin = ageMinRaw ? parseInt(ageMinRaw) : null;
   const ageMax = ageMaxRaw ? parseInt(ageMaxRaw) : null;
-  const budgetMinRaw = document.getElementById("budgetMin").value;
-  const budgetMaxRaw = document.getElementById("budgetMax").value;
-  const budgetMin = budgetMinRaw ? parseInt(budgetMinRaw) : null;
-  const budgetMax = budgetMaxRaw ? parseInt(budgetMaxRaw) : null;
+
 
   filteredModels = MODELS.filter(m => {
     // Keyword
@@ -700,9 +663,7 @@ function applyFilters() {
     if (activeWorkTypes.length > 0 && !activeWorkTypes.some(t => m.workTypes.includes(t))) return false;
     // Look
     if (activeLooks.length > 0 && !activeLooks.some(l => m.looks.includes(l))) return false;
-    // Budget
-    if (budgetMax !== null && m.rate > budgetMax) return false;
-    if (budgetMin !== null && m.rate < budgetMin) return false;
+
     return true;
   });
 
@@ -805,7 +766,7 @@ function openModal(id) {
     <div class="modal-stat"><div class="modal-stat-num">${m.shoes}<span style="font-size:0.9rem">mm</span></div><div class="modal-stat-label">Shoes</div><div style="font-size:0.7rem;color:var(--gray-400)">EU ${m.shoes_eu}</div></div>
     <div class="modal-stat"><div class="modal-stat-num" style="font-size:1rem;text-transform:capitalize">${m.hair_color}</div><div class="modal-stat-label">Hair</div><div style="font-size:0.7rem;color:var(--gray-400)">${m.hair_length}</div></div>
     <div class="modal-stat"><div class="modal-stat-num" style="font-size:1rem;text-transform:capitalize">${m.eye_color}</div><div class="modal-stat-label">Eyes</div></div>
-    <div class="modal-stat"><div class="modal-stat-num">$${m.rate.toLocaleString()}</div><div class="modal-stat-label">Day Rate</div></div>`;
+`;
   document.getElementById("modalTags").innerHTML = m.workTypes.map(t => `<span class="modal-tag">${t}</span>`).join("");
   document.getElementById("modalLooks").innerHTML = m.looks.map(l => `<span class="modal-tag">${l}</span>`).join("");
   document.getElementById("modalBg").classList.add("open");
@@ -859,9 +820,7 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   document.getElementById("hipsMaxVal").textContent = 110;
   document.getElementById("ageMin").value = "";
   document.getElementById("ageMax").value = "";
-  document.getElementById("budgetMin").value = "";
-  document.getElementById("budgetMax").value = "";
-  document.getElementById("currencySelect").value = "USD";
+
   document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
   activeWorkTypes.length = 0; activeLooks.length = 0; activeNationalities.length = 0; activeHair.length = 0; activeGender.length = 0; activeHairColors.length = 0; activeEyeColors.length = 0;
   filteredModels = [...MODELS];
@@ -897,18 +856,7 @@ document.getElementById("ageMax").addEventListener("input", () => {
   if (document.getElementById("ageMax").value.trim()) clearErrorState(document.getElementById("ageMax"));
   applyFilters();
 });
-document.getElementById("budgetMin").addEventListener("input", () => {
-  if (document.getElementById("budgetMin").value.trim()) clearErrorState(document.getElementById("budgetMin"));
-  applyFilters();
-});
-document.getElementById("budgetMax").addEventListener("input", () => {
-  if (document.getElementById("budgetMax").value.trim()) clearErrorState(document.getElementById("budgetMax"));
-  applyFilters();
-});
-document.getElementById("currencySelect").addEventListener("change", () => {
-  clearErrorState(document.getElementById("currencySelect"));
-  applyFilters();
-});
+
 // Don't render on load — wait for Find Matches click
 
 </script>
