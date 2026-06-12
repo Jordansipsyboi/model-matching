@@ -84,8 +84,9 @@ ROSTER_PATTERNS = [
 ]
 
 
-async def fetch_page_html(url: str) -> tuple[str, list]:
-    """Returns (html, roster_urls) — roster_urls are sub-pages found on the page."""
+async def fetch_page_html(url: str) -> tuple[str, list, list]:
+    """Returns (html, roster_urls, profile_urls)."""
+    from urllib.parse import urljoin, urlparse
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page(
@@ -96,33 +97,47 @@ async def fetch_page_html(url: str) -> tuple[str, list]:
             await page.wait_for_timeout(4000)
             html = await page.content()
 
-            # Find links that look like model roster pages
-            from urllib.parse import urljoin, urlparse
             base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
+            current_path = urlparse(url).path.rstrip("/")
             links = await page.eval_on_selector_all(
                 "a[href]", "els => els.map(e => e.getAttribute('href'))"
             )
+
             roster_urls = []
+            profile_urls = []
             seen = set()
+
             for href in links:
-                if not href:
+                if not href or href.startswith("#") or href.startswith("mailto"):
                     continue
-                full = urljoin(base, href)
-                # Only same-domain links matching roster patterns
+                full = urljoin(base, href).split("?")[0].split("#")[0]
                 if urlparse(full).netloc != urlparse(url).netloc:
                     continue
-                path = urlparse(full).path.lower()
-                if any(p in path for p in ROSTER_PATTERNS) and full not in seen:
-                    seen.add(full)
+                if full in seen:
+                    continue
+                seen.add(full)
+
+                path = urlparse(full).path.rstrip("/")
+
+                # Profile page: starts with current roster path + one more slug
+                # e.g. current=/asian_women, profile=/asian_women/kim-seojin
+                if current_path and path.startswith(current_path + "/"):
+                    remainder = path[len(current_path)+1:]
+                    # Only one level deep (no further slashes)
+                    if remainder and "/" not in remainder:
+                        profile_urls.append(full)
+                # Roster page: matches known patterns but not a profile
+                elif any(p in path.lower() for p in ROSTER_PATTERNS):
                     roster_urls.append(full)
 
         except Exception as e:
             print(f"  Failed to load {url}: {e}")
             html = ""
             roster_urls = []
+            profile_urls = []
         finally:
             await browser.close()
-    return html, roster_urls
+    return html, roster_urls, profile_urls
 
 
 def call_ai(html_chunk: str, agency_name: str, url: str) -> list:
@@ -230,6 +245,62 @@ def save_crawled_models(models: list, agency_name: str):
     return added
 
 
+async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing_models: list) -> list:
+    """Crawl individual profile pages and build/enrich model list from them."""
+    from urllib.parse import urljoin, urlparse
+
+    # Build lookup by name for merging with roster data
+    by_name = {m["english"].upper(): m for m in existing_models if m.get("english")}
+
+    results = []
+    for i, profile_url in enumerate(profile_urls):
+        print(f"  Profile {i+1}/{len(profile_urls)}: {profile_url.rstrip('/').split('/')[-1]}")
+        try:
+            html, _, _ = await fetch_page_html(profile_url)
+            if not html:
+                continue
+            details = fetch_profile_details(html, profile_url)
+            if not details or not details.get("english"):
+                continue
+
+            # Merge with any existing roster data for this model
+            name_key = details["english"].upper()
+            base = by_name.get(name_key, {})
+
+            model = {
+                "english": details.get("english", base.get("english", "")),
+                "korean": details.get("korean") or base.get("korean", ""),
+                "gender": base.get("gender", "female"),
+                "nationality": base.get("nationality", "other"),
+                "workTypes": base.get("workTypes", []),
+                "looks": base.get("looks", []),
+                "birth": base.get("birth", 1995),
+                "rate": 0,
+                "height": details.get("height") or base.get("height", 0),
+                "chest": details.get("chest") or base.get("chest", 0),
+                "waist": details.get("waist") or base.get("waist", 0),
+                "hips": details.get("hips") or base.get("hips", 0),
+                "shoes": details.get("shoes") or base.get("shoes", 0),
+                "hair_length": details.get("hair_length") or base.get("hair_length", "medium"),
+                "hair_color": details.get("hair_color") or base.get("hair_color", "black"),
+                "eye_color": details.get("eye_color") or base.get("eye_color", "brown"),
+                "photo_url": details.get("photo_url", ""),
+                "profile_url": profile_url,
+                "agency": agency_name,
+            }
+            results.append(model)
+        except Exception as e:
+            print(f"    Error: {e}")
+
+    # Add any roster models that didn't have a profile page
+    result_names = {m["english"].upper() for m in results}
+    for m in existing_models:
+        if m.get("english", "").upper() not in result_names:
+            results.append(m)
+
+    return results
+
+
 async def enrich_model_profiles(models: list, base_url: str, agency_name: str):
     """Visit each model's individual profile page to get photo + measurements."""
     from urllib.parse import urljoin, urlparse
@@ -298,7 +369,7 @@ async def crawl_agency(agency: dict):
     url = agency["agency_website"]
     print(f"\nCrawling: {name} ({url})")
 
-    html, roster_urls = await fetch_page_html(url)
+    html, roster_urls, profile_urls = await fetch_page_html(url)
     if not html:
         print(f"  Skipping — could not load page")
         return 0
@@ -308,21 +379,26 @@ async def crawl_agency(agency: dict):
     models = extract_models_with_ai(html, name, url)
     print(f"  AI found {len(models)} models on homepage")
 
+    all_profile_urls = list(profile_urls)
+
     # If homepage had no models, try roster sub-pages
     if not models and roster_urls:
         print(f"  Found {len(roster_urls)} roster sub-pages: {roster_urls[:5]}")
-        for roster_url in roster_urls[:6]:  # max 6 sub-pages per agency
+        for roster_url in roster_urls[:6]:
             print(f"  Trying: {roster_url}")
-            sub_html, _ = await fetch_page_html(roster_url)
+            sub_html, _, sub_profiles = await fetch_page_html(roster_url)
             if not sub_html:
                 continue
             sub_models = extract_models_with_ai(sub_html, name, roster_url)
-            print(f"  AI found {len(sub_models)} models on {roster_url}")
+            print(f"  AI found {len(sub_models)} models, {len(sub_profiles)} profile links on {roster_url.split('/')[-2]}/")
             models.extend(sub_models)
+            all_profile_urls.extend(sub_profiles)
 
-    if models:
-        print(f"  Enriching profiles for {len(models)} models...")
-        models = await enrich_model_profiles(models, url, name)
+    if models or all_profile_urls:
+        # If we have direct profile URLs, crawl them for full details
+        if all_profile_urls:
+            print(f"  Found {len(all_profile_urls)} profile pages — crawling for photos + measurements...")
+            models = await crawl_profiles_directly(all_profile_urls, name, models)
         added = save_crawled_models(models, name)
         print(f"  Saved {added} models to database")
     else:
