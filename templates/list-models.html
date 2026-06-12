@@ -4,16 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>List Your Agency — Model Matching</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --black: #0a0a0a; --white: #fafaf8; --gray-100: #f0efe9;
-  --gray-200: #d8d6ce; --gray-400: #9e9b90; --gray-600: #5c5a54;
-  --accent: #c8a97e; --accent-dark: #a8895e;
+  --black: #0a0a0a; --white: #ffffff; --gray-100: #f2f2f2;
+  --gray-200: #d0d0d0; --gray-400: #888888; --gray-600: #444444;
+  --accent: #000000; --accent-dark: #222222;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { background: var(--white); color: var(--black); font-family: 'DM Sans', sans-serif; font-weight: 300; }
+body { background: var(--white); color: var(--black); font-family: 'Space Grotesk', sans-serif; font-weight: 300; }
 
 nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
@@ -22,7 +22,7 @@ nav {
   background: rgba(250,250,248,0.92); backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--gray-200);
 }
-.nav-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--black); text-decoration: none; }
+.nav-logo { font-family: 'Space Grotesk', sans-serif; font-size: 1.3rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--black); text-decoration: none; }
 .nav-right { display: flex; align-items: center; gap: 2rem; }
 .nav-back { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-400); text-decoration: none; transition: color 0.2s; }
 .nav-back:hover { color: var(--black); }
@@ -31,7 +31,7 @@ nav {
 
 .hero { padding: 9rem 4rem 4rem; max-width: 860px; margin: 0 auto; text-align: center; }
 .hero-eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent); margin-bottom: 1.2rem; }
-.hero-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 300; line-height: 1.1; margin-bottom: 1rem; }
+.hero-title { font-family: 'Space Grotesk', sans-serif; font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 300; line-height: 1.1; margin-bottom: 1rem; }
 .hero-title em { font-style: italic; color: var(--accent); }
 .hero-sub { font-size: 0.9rem; color: var(--gray-600); line-height: 1.8; max-width: 520px; margin: 0 auto; }
 
@@ -40,7 +40,7 @@ nav {
 .block { margin-bottom: 3rem; padding-bottom: 3rem; border-bottom: 1px solid var(--gray-200); }
 .block:last-of-type { border-bottom: none; }
 .block-label { font-size: 0.62rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.5rem; }
-.block-title { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 300; margin-bottom: 0.4rem; }
+.block-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 300; margin-bottom: 0.4rem; }
 .block-sub { font-size: 0.82rem; color: var(--gray-600); line-height: 1.7; margin-bottom: 2rem; }
 
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.2rem; }
@@ -49,7 +49,7 @@ nav {
 .field label { font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gray-400); }
 .field input, .field select, .field textarea {
   border: 1px solid var(--gray-200); padding: 0.75rem 1rem;
-  font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 300;
+  font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; font-weight: 300;
   background: var(--white); color: var(--black); outline: none; transition: border-color 0.2s; width: 100%;
 }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--black); }
@@ -59,14 +59,14 @@ nav {
 
 .how-it-works { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
 .step { padding: 1.5rem; border: 1px solid var(--gray-200); }
-.step-num { font-family: 'Cormorant Garamond', serif; font-size: 2rem; font-weight: 300; color: var(--accent); margin-bottom: 0.5rem; }
+.step-num { font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 300; color: var(--accent); margin-bottom: 0.5rem; }
 .step-title { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.4rem; }
 .step-desc { font-size: 0.78rem; color: var(--gray-600); line-height: 1.6; }
 
 .submit-wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 2rem; border-top: 1px solid var(--gray-200); flex-wrap: wrap; gap: 1rem; }
 .submit-note { font-size: 0.78rem; color: var(--gray-400); line-height: 1.6; max-width: 380px; }
 .submit-note span { color: var(--black); }
-.btn-submit { background: var(--black); color: var(--white); border: none; padding: 1rem 3rem; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; transition: background 0.2s; }
+.btn-submit { background: var(--black); color: var(--white); border: none; padding: 1rem 3rem; font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; transition: background 0.2s; }
 .btn-submit:hover { background: var(--accent-dark); }
 .btn-submit:disabled { background: var(--gray-200); color: var(--gray-400); cursor: not-allowed; }
 
@@ -76,16 +76,16 @@ nav {
 .success { display: none; text-align: center; padding: 5rem 2rem; }
 .success.show { display: block; animation: fadeUp 0.5s ease; }
 .success-icon { font-size: 2.5rem; margin-bottom: 1.5rem; color: var(--accent); }
-.success-title { font-family: 'Cormorant Garamond', serif; font-size: 2.8rem; font-weight: 300; margin-bottom: 1rem; }
+.success-title { font-family: 'Space Grotesk', sans-serif; font-size: 2.8rem; font-weight: 300; margin-bottom: 1rem; }
 .success-title em { font-style: italic; color: var(--accent); }
 .success-sub { font-size: 0.88rem; color: var(--gray-600); line-height: 1.8; max-width: 460px; margin: 0 auto 2rem; }
-.btn-outline { border: 1px solid var(--black); color: var(--black); padding: 0.85rem 2rem; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; display: inline-block; transition: all 0.2s; }
+.btn-outline { border: 1px solid var(--black); color: var(--black); padding: 0.85rem 2rem; font-family: 'Space Grotesk', sans-serif; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; display: inline-block; transition: all 0.2s; }
 .btn-outline:hover { background: var(--black); color: var(--white); }
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
 footer { border-top: 1px solid var(--gray-200); padding: 2.5rem 4rem; display: flex; align-items: center; justify-content: space-between; }
-.footer-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.footer-logo { font-family: 'Space Grotesk', sans-serif; font-size: 1.1rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
 .footer-copy { font-size: 0.75rem; color: var(--gray-400); }
 
 @media (max-width: 768px) {
