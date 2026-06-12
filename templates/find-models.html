@@ -303,14 +303,14 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
 
     <!-- WAIST -->
     <div class="filter-section">
-      <span class="filter-label required">Waist (inch)</span>
+      <span class="filter-label required">Waist (cm)</span>
       <div class="range-wrap">
         <div class="range-row">
-          <span class="range-val" id="waistMinVal">24</span>
-          <span class="range-val" id="waistMaxVal">40</span>
+          <span class="range-val" id="waistMinVal">55</span>
+          <span class="range-val" id="waistMaxVal">90</span>
         </div>
-        <input type="range" id="waistMin" min="24" max="40" value="24" step="1">
-        <input type="range" id="waistMax" min="24" max="40" value="40" step="1">
+        <input type="range" id="waistMin" min="55" max="90" value="55" step="1">
+        <input type="range" id="waistMax" min="55" max="90" value="90" step="1">
       </div>
     </div>
 
@@ -778,10 +778,10 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   document.getElementById("heightMax").value = 200;
   document.getElementById("heightMinVal").textContent = 160;
   document.getElementById("heightMaxVal").textContent = 200;
-  document.getElementById("waistMin").value = 24;
-  document.getElementById("waistMax").value = 40;
-  document.getElementById("waistMinVal").textContent = 24;
-  document.getElementById("waistMaxVal").textContent = 40;
+  document.getElementById("waistMin").value = 55;
+  document.getElementById("waistMax").value = 90;
+  document.getElementById("waistMinVal").textContent = 55;
+  document.getElementById("waistMaxVal").textContent = 90;
   document.getElementById("ageMin").value = "";
   document.getElementById("ageMax").value = "";
   document.getElementById("budgetMin").value = "";
