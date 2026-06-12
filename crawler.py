@@ -217,18 +217,21 @@ def parse_profile_html(html: str, profile_url: str) -> dict:
         for label in [r'bust', r'chest', r'가슴', r'버스트']:
             m = re.search(rf'{label}[\s:]*(\d{{2,3}})', text, re.I)
             if m:
-                result["chest"] = int(m.group(1))
+                v = int(m.group(1))
+                result["chest"] = round(v * 2.54) if v < 60 else v  # convert inches→cm
                 break
 
         # Waist — English or Korean (허리)
         m = re.search(r'(?:waist|허리)[\s:]*(\d{2,3})', text, re.I)
         if m:
-            result["waist"] = int(m.group(1))
+            v = int(m.group(1))
+            result["waist"] = round(v * 2.54) if v < 60 else v
 
         # Hips — English or Korean (엉덩이/힙)
         m = re.search(r'(?:hips?|엉덩이|힙)[\s:]*(\d{2,3})', text, re.I)
         if m:
-            result["hips"] = int(m.group(1))
+            v = int(m.group(1))
+            result["hips"] = round(v * 2.54) if v < 60 else v
 
         # Shoes — mm first, then EU; Korean (발/신발)
         m = re.search(r'(?:shoes?|발사이즈|발|신발)[\s:]*(\d{3})', text, re.I)
