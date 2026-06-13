@@ -223,7 +223,14 @@ def get_all_agencies():
         """)
         rows = cur.fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        d = dict(r)
+        for col in ("submitted_at", "last_crawled_at"):
+            if d.get(col) and hasattr(d[col], "isoformat"):
+                d[col] = d[col].isoformat()
+        result.append(d)
+    return result
 
 
 def get_all_models():
