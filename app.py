@@ -89,7 +89,9 @@ def admin_crawl(agency_id):
     from crawler import crawl_agency
 
     conn = database.get_connection()
-    row = conn.execute("SELECT * FROM agencies WHERE id = ?", (agency_id,)).fetchone()
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM agencies WHERE id = %s", (agency_id,))
+        row = cur.fetchone()
     conn.close()
     if not row:
         return jsonify({"error": "Agency not found"}), 404
@@ -113,9 +115,14 @@ def admin_agency_status(agency_id):
     if not session.get("admin"):
         return jsonify({"error": "Unauthorized"}), 401
     conn = database.get_connection()
-    row = conn.execute("SELECT last_crawled_at FROM agencies WHERE id = ?", (agency_id,)).fetchone()
+    with conn.cursor() as cur:
+        cur.execute("SELECT last_crawled_at FROM agencies WHERE id = %s", (agency_id,))
+        row = cur.fetchone()
     conn.close()
-    return jsonify({"last_crawled_at": row["last_crawled_at"] if row else None})
+    val = row["last_crawled_at"] if row else None
+    if val and hasattr(val, "isoformat"):
+        val = val.isoformat()
+    return jsonify({"last_crawled_at": val})
 
 
 # ── Nightly scheduler ──────────────────────────────────────────

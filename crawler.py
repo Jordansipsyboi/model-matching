@@ -317,41 +317,50 @@ def save_crawled_models(models: list, agency_name: str):
     for m in models:
         if not m.get("english"):
             continue
-        # Normalize name: remove hyphens/punctuation so lee-hai-na and lee haina get same ID
         import re as _re
         model_id = _re.sub(r'[^a-z0-9]+', '_', m["english"].lower()).strip('_')
         try:
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO models
-                    (id, korean, english, birth, height, chest, waist, hips, shoes,
-                     hair_length, hair_color, eye_color, gender, nationality,
-                     work_types, looks, rate, photo_url, agency_name, profile_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    model_id,
-                    m.get("korean", ""),
-                    m["english"],
-                    m.get("birth", 1995),
-                    m.get("height", 0),
-                    m.get("chest", 0),
-                    m.get("waist", 0),
-                    m.get("hips", 0),
-                    m.get("shoes", 0),
-                    m.get("hair_length", "medium"),
-                    m.get("hair_color", "black"),
-                    m.get("eye_color", "brown"),
-                    m.get("gender", "female"),
-                    m.get("nationality", "other"),
-                    json.dumps(m.get("workTypes", [])),
-                    json.dumps(m.get("looks", [])),
-                    m.get("rate", 0),
-                    m.get("photo_url", ""),
-                    agency_name,
-                    m.get("profile_url", ""),
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO models
+                        (id, korean, english, birth, height, chest, waist, hips, shoes,
+                         hair_length, hair_color, eye_color, gender, nationality,
+                         work_types, looks, rate, photo_url, agency_name, profile_url)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        korean=VALUES(korean), english=VALUES(english), birth=VALUES(birth),
+                        height=VALUES(height), chest=VALUES(chest), waist=VALUES(waist),
+                        hips=VALUES(hips), shoes=VALUES(shoes), hair_length=VALUES(hair_length),
+                        hair_color=VALUES(hair_color), eye_color=VALUES(eye_color),
+                        gender=VALUES(gender), nationality=VALUES(nationality),
+                        work_types=VALUES(work_types), looks=VALUES(looks), rate=VALUES(rate),
+                        photo_url=VALUES(photo_url), agency_name=VALUES(agency_name),
+                        profile_url=VALUES(profile_url)
+                    """,
+                    (
+                        model_id,
+                        m.get("korean", ""),
+                        m["english"],
+                        m.get("birth", 1995),
+                        m.get("height", 0),
+                        m.get("chest", 0),
+                        m.get("waist", 0),
+                        m.get("hips", 0),
+                        m.get("shoes", 0),
+                        m.get("hair_length", "medium"),
+                        m.get("hair_color", "black"),
+                        m.get("eye_color", "brown"),
+                        m.get("gender", "female"),
+                        m.get("nationality", "other"),
+                        json.dumps(m.get("workTypes", [])),
+                        json.dumps(m.get("looks", [])),
+                        m.get("rate", 0),
+                        m.get("photo_url", ""),
+                        agency_name,
+                        m.get("profile_url", ""),
+                    )
                 )
-            )
             added += 1
         except Exception as e:
             print(f"  Could not save {m.get('english')}: {e}")
@@ -462,24 +471,27 @@ async def enrich_model_profiles(models: list, base_url: str, agency_name: str):
 
 def update_last_crawled(agency_id: int):
     conn = database.get_connection()
-    conn.execute(
-        "UPDATE agencies SET last_crawled_at = ? WHERE id = ?",
-        (datetime.now().isoformat(), agency_id)
-    )
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE agencies SET last_crawled_at = %s WHERE id = %s",
+            (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), agency_id)
+        )
     conn.commit()
     conn.close()
 
 
 def get_agencies_to_crawl() -> list:
     conn = database.get_connection()
-    cutoff = (datetime.now() - timedelta(hours=24)).isoformat()
-    rows = conn.execute(
-        """
-        SELECT id, agency_name, agency_website FROM agencies
-        WHERE last_crawled_at IS NULL OR last_crawled_at < ?
-        """,
-        (cutoff,)
-    ).fetchall()
+    cutoff = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, agency_name, agency_website FROM agencies
+            WHERE last_crawled_at IS NULL OR last_crawled_at < %s
+            """,
+            (cutoff,)
+        )
+        rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
 

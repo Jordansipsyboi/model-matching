@@ -1,8 +1,15 @@
 import json
 import os
-import sqlite3
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "models.db")
+import pymysql
+import pymysql.cursors
+
+# ── Connection config (set these in your environment or .env) ──
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+DB_PORT = int(os.getenv("DB_PORT", "3306"))
+DB_USER = os.getenv("DB_USER", "root")
+DB_PASS = os.getenv("DB_PASS", "")
+DB_NAME = os.getenv("DB_NAME", "model_matching")
 
 
 def _cm_to_ft(cm):
@@ -17,7 +24,6 @@ def _cm_to_in(cm):
 
 
 def _mm_to_eu(mm):
-    # EU size = (foot length in cm + 1.5) / 0.667
     eu = (mm / 10 + 1.5) / 0.667
     return round(eu)
 
@@ -56,87 +62,105 @@ SEED_MODELS = [
 
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return pymysql.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        user=DB_USER,
+        password=DB_PASS,
+        database=DB_NAME,
+        charset="utf8mb4",
+        cursorclass=pymysql.cursors.DictCursor,
+        autocommit=False,
+    )
 
 
 def init_db():
     conn = get_connection()
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS agencies (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            agency_name     TEXT NOT NULL,
-            agency_website  TEXT NOT NULL,
-            contact_name    TEXT NOT NULL,
-            contact_email   TEXT NOT NULL,
-            market          TEXT NOT NULL,
-            notes           TEXT,
-            submitted_at    TEXT DEFAULT (datetime('now')),
-            last_crawled_at TEXT DEFAULT NULL
-        )
-        """
-    )
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS models (
-            id          TEXT PRIMARY KEY,
-            korean      TEXT,
-            english     TEXT,
-            birth       INTEGER,
-            height      INTEGER,
-            chest       INTEGER,
-            waist       INTEGER,
-            hips        INTEGER,
-            shoes       INTEGER,
-            hair_length TEXT,
-            hair_color  TEXT,
-            eye_color   TEXT,
-            gender      TEXT,
-            nationality TEXT,
-            work_types  TEXT,
-            looks       TEXT,
-            rate        INTEGER,
-            photo_url   TEXT,
-            agency_name TEXT,
-            profile_url TEXT
-        )
-        """
-    )
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS agencies (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                agency_name     VARCHAR(255) NOT NULL,
+                agency_website  VARCHAR(500) NOT NULL,
+                contact_name    VARCHAR(255) NOT NULL,
+                contact_email   VARCHAR(255) NOT NULL,
+                market          VARCHAR(100) NOT NULL,
+                notes           TEXT,
+                submitted_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_crawled_at DATETIME DEFAULT NULL
+            ) CHARACTER SET utf8mb4
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS models (
+                id          VARCHAR(255) PRIMARY KEY,
+                korean      VARCHAR(255),
+                english     VARCHAR(255),
+                birth       INT,
+                height      INT,
+                chest       INT,
+                waist       INT,
+                hips        INT,
+                shoes       INT,
+                hair_length VARCHAR(100),
+                hair_color  VARCHAR(100),
+                eye_color   VARCHAR(100),
+                gender      VARCHAR(50),
+                nationality VARCHAR(100),
+                work_types  JSON,
+                looks       JSON,
+                rate        INT,
+                photo_url   TEXT,
+                agency_name VARCHAR(255),
+                profile_url TEXT
+            ) CHARACTER SET utf8mb4
+        """)
     conn.commit()
     conn.close()
 
 
 def seed_db():
     conn = get_connection()
-    for m in SEED_MODELS:
-        conn.execute(
-            """
-            INSERT OR REPLACE INTO models
-                (id, korean, english, birth, height, chest, waist, hips, shoes,
-                 hair_length, hair_color, eye_color, gender, nationality,
-                 work_types, looks, rate)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                m["id"], m["korean"], m["english"], m["birth"],
-                m["height"], m["chest"], m["waist"], m["hips"], m["shoes"],
-                m["hair_length"], m["hair_color"], m["eye_color"],
-                m["gender"], m["nationality"],
-                json.dumps(m["workTypes"]), json.dumps(m["looks"]), m["rate"],
-            ),
-        )
+    with conn.cursor() as cur:
+        for m in SEED_MODELS:
+            cur.execute(
+                """
+                INSERT INTO models
+                    (id, korean, english, birth, height, chest, waist, hips, shoes,
+                     hair_length, hair_color, eye_color, gender, nationality,
+                     work_types, looks, rate)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE id=id
+                """,
+                (
+                    m["id"], m["korean"], m["english"], m["birth"],
+                    m["height"], m["chest"], m["waist"], m["hips"], m["shoes"],
+                    m["hair_length"], m["hair_color"], m["eye_color"],
+                    m["gender"], m["nationality"],
+                    json.dumps(m["workTypes"]), json.dumps(m["looks"]), m["rate"],
+                ),
+            )
     conn.commit()
     conn.close()
 
 
 def _row_to_model(row):
-    h = row["height"]
-    chest = row["chest"]
-    waist = row["waist"]
-    hips = row["hips"]
-    shoes = row["shoes"]
+    h = row["height"] or 0
+    chest = row["chest"] or 0
+    waist = row["waist"] or 0
+    hips = row["hips"] or 0
+    shoes = row["shoes"] or 0
+
+    work_types = row.get("work_types") or "[]"
+    looks = row.get("looks") or "[]"
+    if isinstance(work_types, list):
+        work_types_list = work_types
+    else:
+        work_types_list = json.loads(work_types)
+    if isinstance(looks, list):
+        looks_list = looks
+    else:
+        looks_list = json.loads(looks)
+
     return {
         "id": row["id"],
         "korean": row["korean"],
@@ -147,14 +171,14 @@ def _row_to_model(row):
         "hair_length": row["hair_length"],
         "hair_color": row["hair_color"],
         "eye_color": row["eye_color"],
-        "workTypes": json.loads(row["work_types"] or "[]"),
-        "looks": json.loads(row["looks"] or "[]"),
+        "workTypes": work_types_list,
+        "looks": looks_list,
         "rate": row["rate"],
         "photo_url": row["photo_url"] or "",
         "agency_name": row["agency_name"] or "",
         "profile_url": row["profile_url"] or "",
-        "agency_email": row["agency_email"] if "agency_email" in row.keys() and row["agency_email"] else "",
-        "agency_website_url": row["agency_website_url"] if "agency_website_url" in row.keys() and row["agency_website_url"] else "",
+        "agency_email": row.get("agency_email") or "",
+        "agency_website_url": row.get("agency_website_url") or "",
         # metric
         "height": h,
         "chest": chest,
@@ -162,56 +186,58 @@ def _row_to_model(row):
         "hips": hips,
         "shoes": shoes,
         # imperial / EU
-        "height_imperial": _cm_to_ft(h),
-        "chest_in": _cm_to_in(chest),
-        "waist_in": _cm_to_in(waist),
-        "hips_in": _cm_to_in(hips),
-        "shoes_eu": _mm_to_eu(shoes),
+        "height_imperial": _cm_to_ft(h) if h else "",
+        "chest_in": _cm_to_in(chest) if chest else "",
+        "waist_in": _cm_to_in(waist) if waist else "",
+        "hips_in": _cm_to_in(hips) if hips else "",
+        "shoes_eu": _mm_to_eu(shoes) if shoes else "",
     }
 
 
 def save_agency(agency_name, agency_website, contact_name, contact_email, market, notes):
     conn = get_connection()
-    conn.execute(
-        """
-        INSERT INTO agencies (agency_name, agency_website, contact_name, contact_email, market, notes)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (agency_name, agency_website, contact_name, contact_email, market, notes),
-    )
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO agencies (agency_name, agency_website, contact_name, contact_email, market, notes)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (agency_name, agency_website, contact_name, contact_email, market, notes),
+        )
     conn.commit()
     conn.close()
 
 
 def get_all_agencies():
     conn = get_connection()
-    rows = conn.execute("""
-        SELECT a.*, COUNT(m.id) as model_count
-        FROM agencies a
-        LEFT JOIN models m ON m.agency_name = a.agency_name
-        GROUP BY a.id
-        ORDER BY a.submitted_at DESC
-    """).fetchall()
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT a.*, COUNT(m.id) as model_count
+            FROM agencies a
+            LEFT JOIN models m ON m.agency_name = a.agency_name
+            GROUP BY a.id
+            ORDER BY a.submitted_at DESC
+        """)
+        rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
 def get_all_models():
     conn = get_connection()
-    rows = conn.execute("""
-        SELECT m.*, a.contact_email as agency_email, a.agency_website as agency_website_url
-        FROM models m
-        LEFT JOIN agencies a ON a.agency_name = m.agency_name
-    """).fetchall()
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT m.*, a.contact_email as agency_email, a.agency_website as agency_website_url
+            FROM models m
+            LEFT JOIN agencies a ON a.agency_name = m.agency_name
+        """)
+        rows = cur.fetchall()
     conn.close()
     return [_row_to_model(r) for r in rows]
 
 
 if __name__ == "__main__":
-    # Delete and recreate the db so schema changes take effect
-    if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
     init_db()
     seed_db()
     count = len(get_all_models())
-    print(f"Database ready at {DB_PATH} with {count} models.")
+    print(f"MySQL database ready with {count} models.")
