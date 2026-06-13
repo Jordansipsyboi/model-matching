@@ -417,6 +417,8 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
                 "profile_url": profile_url,
                 "agency": agency_name,
             }
+            # Save immediately so Ctrl+C never loses progress
+            save_crawled_models([model], agency_name)
             results.append(model)
         except Exception as e:
             print(f"    Error: {e}")
