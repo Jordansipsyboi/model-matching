@@ -4,12 +4,15 @@ import os
 import pymysql
 import pymysql.cursors
 
-# ── Connection config (set these in your environment or .env) ──
-DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
-DB_PORT = int(os.getenv("DB_PORT", "3306"))
-DB_USER = os.getenv("DB_USER", "root")
-DB_PASS = os.getenv("DB_PASS", "")
-DB_NAME = os.getenv("DB_NAME", "model_matching")
+_cfg_path = os.path.join(os.path.dirname(__file__), "config.json")
+with open(_cfg_path) as _f:
+    _cfg = json.load(_f)
+
+DB_HOST = _cfg["db_host"]
+DB_PORT = int(_cfg["db_port"])
+DB_USER = _cfg["db_user"]
+DB_PASS = _cfg["db_pass"]
+DB_NAME = _cfg["db_name"]
 
 
 def _cm_to_ft(cm):
