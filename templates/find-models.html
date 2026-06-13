@@ -192,6 +192,16 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
 .empty-title { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 1.8rem; font-weight: 700; margin-bottom: 0.5rem; }
 .empty-sub { font-size: 0.85rem; color: var(--gray-400); }
 
+/* PAGINATION */
+.pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-200); flex-wrap: wrap; gap: 1rem; }
+.pagination-info { font-size: 0.72rem; color: var(--gray-400); }
+.pagination-controls { display: flex; align-items: center; gap: 0.75rem; }
+.per-page-select { border: 1px solid var(--gray-200); padding: 0.4rem 1.8rem 0.4rem 0.6rem; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 0.72rem; background: var(--white); outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239e9b90'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.5rem center; cursor: pointer; }
+.page-btns { display: flex; gap: 3px; }
+.page-btn { border: 1px solid var(--gray-200); background: var(--white); padding: 0.35rem 0.7rem; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 0.68rem; cursor: pointer; letter-spacing: 0.05em; color: var(--black); }
+.page-btn.active { background: var(--black); color: var(--white); border-color: var(--black); }
+.page-btn:disabled { opacity: 0.3; cursor: default; }
+
 /* MODAL */
 .modal-bg { position: fixed; inset: 0; background: rgba(10,10,10,0.6); z-index: 200; display: none; align-items: center; justify-content: center; padding: 2rem; backdrop-filter: blur(4px); }
 .modal-bg.open { display: flex; }
@@ -436,6 +446,19 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
       </select>
     </div>
     <div class="model-grid" id="modelGrid"></div>
+    <div class="pagination" id="paginationBar" style="display:none;">
+      <span class="pagination-info" id="pageInfo"></span>
+      <div class="pagination-controls">
+        <span style="font-size:0.72rem;color:var(--gray-400);">Per page:</span>
+        <select class="per-page-select" id="perPageSelect" onchange="perPageChange()">
+          <option value="12">12</option>
+          <option value="24" selected>24</option>
+          <option value="48">48</option>
+          <option value="96">96</option>
+        </select>
+        <div class="page-btns" id="pageBtns"></div>
+      </div>
+    </div>
     </div>
   </main>
 </div>
@@ -585,17 +608,38 @@ function validateRequiredFields() {
   return true;
 }
 
-// Render cards
+// Pagination state
+let currentPage = 1;
+let perPage = 24;
+
+function perPageChange() {
+  perPage = parseInt(document.getElementById("perPageSelect").value);
+  currentPage = 1;
+  renderCurrentPage();
+}
+
 function renderCards(models) {
+  currentPage = 1;
+  renderCurrentPage();
+}
+
+function renderCurrentPage() {
   const grid = document.getElementById("modelGrid");
-  document.getElementById("resultCount").textContent = models.length;
-  if (models.length === 0) {
+  const total = filteredModels.length;
+  const totalPages = Math.ceil(total / perPage) || 1;
+  const start = (currentPage - 1) * perPage;
+  const pageModels = filteredModels.slice(start, start + perPage);
+
+  document.getElementById("resultCount").textContent = total;
+
+  if (total === 0) {
     grid.innerHTML = `<div class="empty-state"><h2 class="empty-title">No models found</h2><p class="empty-sub">Try adjusting your filters</p></div>`;
+    document.getElementById("paginationBar").style.display = "none";
     return;
   }
-  grid.innerHTML = models.map(m => {
+
+  grid.innerHTML = pageModels.map(m => {
     const photo = m.photo_url || "";
-    const age = new Date().getFullYear() - m.birth;
     const tags = m.workTypes.slice(0,3).map(t => `<span class="card-tag">${t}</span>`).join("");
     const matchBadge = photoUploaded ? `<div class="match-badge visible">${Math.floor(70+Math.random()*28)}% match</div>` : "";
     return `
@@ -612,6 +656,34 @@ function renderCards(models) {
       </div>
     </div>`;
   }).join("");
+
+  // Pagination bar
+  const bar = document.getElementById("paginationBar");
+  bar.style.display = total > perPage ? "flex" : "none";
+  const from = start + 1, to = Math.min(start + perPage, total);
+  document.getElementById("pageInfo").textContent = `${from}–${to} of ${total} models`;
+
+  const btns = document.getElementById("pageBtns");
+  btns.innerHTML = "";
+  const addBtn = (label, target, disabled) => {
+    const b = document.createElement("button");
+    b.className = "page-btn" + (target === currentPage ? " active" : "");
+    b.textContent = label;
+    b.disabled = disabled;
+    b.onclick = () => { currentPage = target; renderCurrentPage(); window.scrollTo({top:0,behavior:"smooth"}); };
+    btns.appendChild(b);
+  };
+  addBtn("‹", currentPage - 1, currentPage === 1);
+  const range = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 1) range.push(i);
+    else if (range[range.length-1] !== "…") range.push("…");
+  }
+  range.forEach(p => {
+    if (p === "…") { const s = document.createElement("span"); s.textContent = "…"; s.style.padding = "0 4px"; s.style.color = "var(--gray-400)"; btns.appendChild(s); }
+    else addBtn(p, p, false);
+  });
+  addBtn("›", currentPage + 1, currentPage === totalPages);
 }
 
 // Filter logic
@@ -676,7 +748,8 @@ function sortModels() {
   else if (sort === "height_asc") filteredModels.sort((a,b) => a.height - b.height);
   else if (sort === "waist_asc") filteredModels.sort((a,b) => a.waist - b.waist);
   else if (sort === "age_asc") filteredModels.sort((a,b) => b.birth - a.birth);
-  renderCards(filteredModels);
+  currentPage = 1;
+  renderCurrentPage();
 }
 
 // Chips
