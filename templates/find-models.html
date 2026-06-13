@@ -327,8 +327,8 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
 
 
     <!-- GENDER -->
-    <div class="filter-section">
-      <span class="filter-label">Gender</span>
+    <div class="filter-section" id="genderSection">
+      <span class="filter-label required">Gender</span>
       <div class="chips" id="genderChips">
         <div class="chip" data-value="male">Male</div>
         <div class="chip" data-value="female">Female</div>
@@ -570,6 +570,11 @@ function validateRequiredFields() {
   if (!photoInput.files.length) {
     setErrorState(document.getElementById("uploadZone"));
     missingFields.push("reference photo");
+  }
+
+  if (activeGender.length === 0) {
+    setErrorState(document.getElementById("genderSection"));
+    missingFields.push("gender");
   }
 
   if (missingFields.length) {

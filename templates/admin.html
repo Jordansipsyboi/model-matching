@@ -43,6 +43,15 @@ td { padding: 10px 16px; vertical-align: middle; }
 .missing { color: #ccc; }
 .crawl-btn { background: #000; color: #fff; border: none; padding: 5px 12px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; }
 .crawl-btn:disabled { background: #888; cursor: default; }
+
+/* Pagination */
+.pagination-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 40px; border-top: 1px solid #f0f0f0; font-size: 0.65rem; color: #888; }
+.pagination-bar select { border: none; border-bottom: 1px solid #d0d0d0; padding: 3px 4px; font-family: inherit; font-size: 0.65rem; outline: none; margin-left: 6px; cursor: pointer; }
+.pagination-info { letter-spacing: 0.08em; }
+.page-btns { display: flex; gap: 4px; }
+.page-btn { border: 1px solid #e0e0e0; background: #fff; padding: 4px 10px; font-family: inherit; font-size: 0.6rem; cursor: pointer; letter-spacing: 0.1em; }
+.page-btn.active { background: #000; color: #fff; border-color: #000; }
+.page-btn:disabled { opacity: 0.3; cursor: default; }
 </style>
 </head>
 <body>
@@ -125,45 +134,128 @@ td { padding: 10px 16px; vertical-align: middle; }
         <th>Profile</th>
       </tr>
     </thead>
-    <tbody>
-      {% for m in models %}
-      <tr>
-        <td>
-          {% if m.photo_url %}
-            <img class="photo" src="{{ m.photo_url }}" onerror="this.parentNode.innerHTML='<div class=no-photo>?</div>'">
-          {% else %}
-            <div class="no-photo">?</div>
-          {% endif %}
-        </td>
-        <td>
-          <div class="name-main">{{ m.english or '—' }}</div>
-          {% if m.korean %}<div class="name-sub">{{ m.korean }}</div>{% endif %}
-        </td>
-        <td>{{ m.gender or '—' }}</td>
-        <td>{% if m.height %}{{ m.height }} cm{% else %}<span class="missing">—</span>{% endif %}</td>
-        <td>{% if m.chest %}{{ m.chest }}{% else %}<span class="missing">—</span>{% endif %}</td>
-        <td>{% if m.waist %}{{ m.waist }}{% else %}<span class="missing">—</span>{% endif %}</td>
-        <td>{% if m.hips %}{{ m.hips }}{% else %}<span class="missing">—</span>{% endif %}</td>
-        <td>{% if m.shoes %}{{ m.shoes }}{% else %}<span class="missing">—</span>{% endif %}</td>
-        <td>{{ m.hair_color or '—' }}</td>
-        <td>{{ m.eye_color or '—' }}</td>
-        <td>{% if m.agency_name %}<span class="tag">{{ m.agency_name }}</span>{% else %}<span class="missing">—</span>{% endif %}</td>
-        <td>{% if m.profile_url %}<a href="{{ m.profile_url }}" target="_blank" class="ext-link">↗</a>{% else %}<span class="missing">—</span>{% endif %}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
+    <tbody id="models-tbody"></tbody>
   </table>
+  <div class="pagination-bar" id="models-pagination">
+    <div class="pagination-info" id="models-page-info"></div>
+    <div style="display:flex;align-items:center;gap:1.5rem;">
+      <div>
+        Per page:
+        <select id="models-per-page" onchange="modelsPerPageChange()">
+          <option value="20">20</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+        </select>
+      </div>
+      <div class="page-btns" id="models-page-btns"></div>
+    </div>
+  </div>
 </div>
 
+<script id="models-data" type="application/json">{{ models | tojson }}</script>
+
 <script>
+// ── Models pagination ──────────────────────────────────────────
+const ALL_MODELS = JSON.parse(document.getElementById('models-data').textContent);
+let modelsFiltered = ALL_MODELS.slice();
+let modelsPage = 1;
+let modelsPerPage = 50;
+
+function renderModelsPage() {
+  const start = (modelsPage - 1) * modelsPerPage;
+  const page  = modelsFiltered.slice(start, start + modelsPerPage);
+  const tbody = document.getElementById('models-tbody');
+
+  tbody.innerHTML = page.map(m => `
+    <tr>
+      <td>${m.photo_url
+        ? `<img class="photo" src="${m.photo_url}" onerror="this.parentNode.innerHTML='<div class=no-photo>?</div>'">`
+        : '<div class="no-photo">?</div>'}</td>
+      <td>
+        <div class="name-main">${m.english || '—'}</div>
+        ${m.korean ? `<div class="name-sub">${m.korean}</div>` : ''}
+      </td>
+      <td>${m.gender || '—'}</td>
+      <td>${m.height ? m.height + ' cm' : '<span class="missing">—</span>'}</td>
+      <td>${m.chest  || '<span class="missing">—</span>'}</td>
+      <td>${m.waist  || '<span class="missing">—</span>'}</td>
+      <td>${m.hips   || '<span class="missing">—</span>'}</td>
+      <td>${m.shoes  || '<span class="missing">—</span>'}</td>
+      <td>${m.hair_color || '—'}</td>
+      <td>${m.eye_color  || '—'}</td>
+      <td>${m.agency_name ? `<span class="tag">${m.agency_name}</span>` : '<span class="missing">—</span>'}</td>
+      <td>${m.profile_url ? `<a href="${m.profile_url}" target="_blank" class="ext-link">↗</a>` : '<span class="missing">—</span>'}</td>
+    </tr>`).join('');
+
+  const total = modelsFiltered.length;
+  const totalPages = Math.ceil(total / modelsPerPage) || 1;
+  const from = total ? start + 1 : 0;
+  const to   = Math.min(start + modelsPerPage, total);
+  document.getElementById('models-page-info').textContent = `${from}–${to} of ${total} models`;
+
+  const btns = document.getElementById('models-page-btns');
+  btns.innerHTML = '';
+  const addBtn = (label, target, disabled) => {
+    const b = document.createElement('button');
+    b.className = 'page-btn' + (target === modelsPage ? ' active' : '');
+    b.textContent = label;
+    b.disabled = disabled;
+    b.onclick = () => { modelsPage = target; renderModelsPage(); };
+    btns.appendChild(b);
+  };
+  addBtn('‹', modelsPage - 1, modelsPage === 1);
+  const range = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - modelsPage) <= 2) range.push(i);
+    else if (range[range.length-1] !== '…') range.push('…');
+  }
+  range.forEach(p => {
+    if (p === '…') { const s = document.createElement('span'); s.textContent = '…'; s.style.padding='4px 6px'; btns.appendChild(s); }
+    else addBtn(p, p, false);
+  });
+  addBtn('›', modelsPage + 1, modelsPage === totalPages);
+}
+
+function modelsPerPageChange() {
+  modelsPerPage = parseInt(document.getElementById('models-per-page').value);
+  modelsPage = 1;
+  renderModelsPage();
+}
+
+renderModelsPage();
+
+// ── Tab switching ──────────────────────────────────────────────
 function switchTab(name, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
   document.getElementById('q').value = '';
+  modelsFiltered = ALL_MODELS.slice();
+  modelsPage = 1;
+  if (name === 'models') renderModelsPage();
 }
 
+// ── Search filter ──────────────────────────────────────────────
+function filterTable() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const activePanel = document.querySelector('.panel.active');
+
+  if (activePanel.id === 'panel-models') {
+    modelsFiltered = q ? ALL_MODELS.filter(m =>
+      `${m.english} ${m.korean} ${m.gender} ${m.agency_name} ${m.hair_color} ${m.eye_color}`.toLowerCase().includes(q)
+    ) : ALL_MODELS.slice();
+    modelsPage = 1;
+    renderModelsPage();
+  } else {
+    activePanel.querySelectorAll('tbody tr').forEach(tr => {
+      tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
+}
+
+// ── Crawl ──────────────────────────────────────────────────────
 function crawlAgency(id, btn) {
   btn.disabled = true;
   btn.textContent = 'Syncing...';
@@ -171,7 +263,6 @@ function crawlAgency(id, btn) {
   fetch(`/admin/crawl/${id}`, { method: 'POST' })
     .then(r => r.json())
     .then(() => {
-      // Poll every 6s — only done if last_crawled_at is AFTER we started
       const interval = setInterval(() => {
         fetch('/admin/agency-status/' + id)
           .then(r => r.json())
@@ -186,14 +277,6 @@ function crawlAgency(id, btn) {
       }, 6000);
     })
     .catch(() => { btn.textContent = 'Error'; btn.disabled = false; });
-}
-
-function filterTable() {
-  const q = document.getElementById('q').value.toLowerCase();
-  const activePanel = document.querySelector('.panel.active');
-  activePanel.querySelectorAll('tbody tr').forEach(tr => {
-    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
-  });
 }
 </script>
 </body>
