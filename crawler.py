@@ -19,7 +19,6 @@ import asyncio
 import json
 import os
 import sys
-import sqlite3
 from datetime import datetime, timedelta
 
 import anthropic
@@ -311,6 +310,61 @@ def fetch_profile_details(html: str, profile_url: str) -> dict:
         return {}
 
 
+def extract_embedding_from_url(photo_url: str):
+    """Download a photo from a URL and extract its face embedding. Returns bytes or None."""
+    try:
+        import urllib.request
+        import tempfile
+        import numpy as np
+        from face1n import AuraFaceComparator
+
+        if not photo_url:
+            return None
+
+        comparator = _get_face_comparator()
+        if comparator is None:
+            return None
+
+        headers = {"User-Agent": "Mozilla/5.0"}
+        req = urllib.request.Request(photo_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            img_data = resp.read()
+
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            tmp.write(img_data)
+            tmp_path = tmp.name
+
+        try:
+            embedding, _ = comparator.extract_face_embedding_optimized(tmp_path)
+        finally:
+            os.unlink(tmp_path)
+
+        if embedding is None:
+            return None
+
+        embedding = embedding.astype("float32")
+        norm = np.linalg.norm(embedding)
+        if norm > 0:
+            embedding = embedding / norm
+        return embedding.tobytes()
+    except Exception as e:
+        print(f"    Face embedding extraction failed: {e}")
+        return None
+
+
+_face_comparator = None
+
+def _get_face_comparator():
+    global _face_comparator
+    if _face_comparator is None:
+        try:
+            from face1n import AuraFaceComparator
+            _face_comparator = AuraFaceComparator()
+        except Exception as e:
+            print(f"  [FaceSDK] Could not load AuraFaceComparator: {e}")
+    return _face_comparator
+
+
 def save_crawled_models(models: list, agency_name: str):
     conn = database.get_connection()
     added = 0
@@ -319,6 +373,15 @@ def save_crawled_models(models: list, agency_name: str):
             continue
         import re as _re
         model_id = _re.sub(r'[^a-z0-9]+', '_', m["english"].lower()).strip('_')
+
+        # Extract face embedding from photo if available
+        face_embedding = None
+        if m.get("photo_url"):
+            print(f"    Extracting face embedding for {m['english']}...")
+            face_embedding = extract_embedding_from_url(m["photo_url"])
+            if face_embedding:
+                print(f"    ✓ Face embedding saved ({len(face_embedding)} bytes)")
+
         try:
             with conn.cursor() as cur:
                 cur.execute(
@@ -326,8 +389,9 @@ def save_crawled_models(models: list, agency_name: str):
                     INSERT INTO models
                         (id, korean, english, birth, height, chest, waist, hips, shoes,
                          hair_length, hair_color, eye_color, gender, nationality,
-                         work_types, looks, rate, photo_url, agency_name, profile_url)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                         work_types, looks, rate, photo_url, agency_name, profile_url,
+                         face_embedding)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE
                         korean=VALUES(korean), english=VALUES(english), birth=VALUES(birth),
                         height=VALUES(height), chest=VALUES(chest), waist=VALUES(waist),
@@ -336,7 +400,8 @@ def save_crawled_models(models: list, agency_name: str):
                         gender=VALUES(gender), nationality=VALUES(nationality),
                         work_types=VALUES(work_types), looks=VALUES(looks), rate=VALUES(rate),
                         photo_url=VALUES(photo_url), agency_name=VALUES(agency_name),
-                        profile_url=VALUES(profile_url)
+                        profile_url=VALUES(profile_url),
+                        face_embedding=IF(VALUES(face_embedding) IS NOT NULL, VALUES(face_embedding), face_embedding)
                     """,
                     (
                         model_id,
@@ -359,6 +424,7 @@ def save_crawled_models(models: list, agency_name: str):
                         m.get("photo_url", ""),
                         agency_name,
                         m.get("profile_url", ""),
+                        face_embedding,
                     )
                 )
             added += 1

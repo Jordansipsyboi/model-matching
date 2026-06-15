@@ -258,7 +258,23 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
         <p class="upload-sub">Drag & drop or click to browse</p>
         <span class="upload-cta">Choose file</span>
       </div>
-      <div class="analyzing-badge" id="analyzingBadge">● Analyzing face...</div>
+      <div class="analyzing-badge" id="analyzingBadge">● Photo ready</div>
+    </div>
+
+    <!-- SIMILARITY THRESHOLD -->
+    <div class="filter-section" style="margin-top:1rem;">
+      <span class="filter-label">Similarity Threshold</span>
+      <div class="range-wrap">
+        <div class="range-row">
+          <span style="font-size:0.72rem;color:var(--gray-400);">Min match %</span>
+          <input type="number" id="thresholdInput" min="0" max="100" value="10"
+            style="width:52px;border:none;border-bottom:1px solid var(--gray-200);text-align:right;font-family:inherit;font-size:0.78rem;outline:none;padding:2px 0;"
+            oninput="document.getElementById('thresholdSlider').value=this.value">
+        </div>
+        <input type="range" id="thresholdSlider" min="0" max="100" value="10" step="1"
+          oninput="document.getElementById('thresholdInput').value=this.value">
+      </div>
+      <p style="font-size:0.65rem;color:var(--gray-400);margin-top:0.4rem;">Only applies when a reference photo is uploaded.</p>
     </div>
 
     <!-- FILTERS GRID -->
@@ -540,7 +556,7 @@ let activeHair = [];
 let activeGender = [];
 let activeHairColors = [];
 let activeEyeColors = [];
-let photoUploaded = false;
+let photoFile = null;
 let filteredModels = [];
 
 function clearValidationBanner() {
@@ -641,7 +657,7 @@ function renderCurrentPage() {
   grid.innerHTML = pageModels.map(m => {
     const photo = m.photo_url || "";
     const tags = m.workTypes.slice(0,3).map(t => `<span class="card-tag">${t}</span>`).join("");
-    const matchBadge = photoUploaded ? `<div class="match-badge visible">${Math.floor(70+Math.random()*28)}% match</div>` : "";
+    const matchBadge = (m.similarity !== null && m.similarity !== undefined) ? `<div class="match-badge visible">${m.similarity}% match</div>` : "";
     return `
     <div class="model-card" onclick="openModal('${m.id}')">
       <div class="card-img-wrap">
@@ -762,7 +778,6 @@ function setupChips(containerId, activeArr) {
       if (idx === -1) activeArr.push(val);
       else activeArr.splice(idx, 1);
       if (activeArr.length) clearErrorState(document.getElementById(containerId));
-      applyFilters();
     });
   });
 }
@@ -781,7 +796,6 @@ function setupRange(minId, maxId, minValId, maxValId) {
       }
       minVal.textContent = minEl.value;
       maxVal.textContent = maxEl.value;
-      applyFilters();
     });
   });
 }
@@ -790,6 +804,7 @@ function setupRange(minId, maxId, minValId, maxValId) {
 document.getElementById("photoInput").addEventListener("change", function() {
   const file = this.files[0];
   if (!file) return;
+  photoFile = file;
   clearErrorState(document.getElementById("uploadZone"));
   const reader = new FileReader();
   reader.onload = e => {
@@ -799,12 +814,7 @@ document.getElementById("photoInput").addEventListener("change", function() {
     document.getElementById("uploadPlaceholder").style.display = "none";
     const badge = document.getElementById("analyzingBadge");
     badge.style.display = "block";
-    photoUploaded = false;
-    setTimeout(() => {
-      badge.textContent = "✓ Face analyzed — showing matches";
-      photoUploaded = true;
-      applyFilters();
-    }, 2000);
+    badge.textContent = "● Photo ready — click Find Matches to search";
   };
   reader.readAsDataURL(file);
 });
@@ -864,22 +874,65 @@ function closeModal() {
 }
 
 // Find & Reset buttons
-document.getElementById("findBtn").addEventListener("click", () => {
+document.getElementById("findBtn").addEventListener("click", async () => {
   if (!validateRequiredFields()) return;
-  applyFilters();
-  const page = document.querySelector(".page");
-  const section = document.getElementById("resultsSection");
-  const sidebar = document.querySelector(".sidebar");
-  const resultsArea = document.querySelector(".results-area");
-  section.classList.remove("visible");
-  page.classList.add("results-open");
-  sidebar.scrollTop = 0;
-  if (resultsArea) resultsArea.scrollTop = 0;
-  document.documentElement.scrollTop = 0;
-  document.body.scrollTop = 0;
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    section.classList.add("visible");
-  }));
+
+  const btn = document.getElementById("findBtn");
+  btn.textContent = "Searching...";
+  btn.disabled = true;
+
+  try {
+    const fd = new FormData();
+    if (photoFile) {
+      fd.append("photo", photoFile);
+      fd.append("threshold", (parseFloat(document.getElementById("thresholdInput").value) / 100).toString());
+    }
+    fd.append("keyword", document.getElementById("keywordInput").value.trim());
+    fd.append("gender", activeGender.join(","));
+    fd.append("work_types", activeWorkTypes.join(","));
+    fd.append("looks", activeLooks.join(","));
+    fd.append("nationalities", activeNationalities.join(","));
+    fd.append("hair_lengths", activeHair.join(","));
+    fd.append("hair_colors", activeHairColors.join(","));
+    fd.append("eye_colors", activeEyeColors.join(","));
+    fd.append("height_min", document.getElementById("heightMin").value);
+    fd.append("height_max", document.getElementById("heightMax").value);
+    fd.append("waist_min", document.getElementById("waistMin").value);
+    fd.append("waist_max", document.getElementById("waistMax").value);
+    fd.append("chest_min", document.getElementById("chestMin").value);
+    fd.append("chest_max", document.getElementById("chestMax").value);
+    fd.append("hips_min", document.getElementById("hipsMin").value);
+    fd.append("hips_max", document.getElementById("hipsMax").value);
+    const ageMin = document.getElementById("ageMin").value;
+    const ageMax = document.getElementById("ageMax").value;
+    if (ageMin) fd.append("age_min", ageMin);
+    if (ageMax) fd.append("age_max", ageMax);
+
+    const res = await fetch("/api/search-models", { method: "POST", body: fd });
+    const data = await res.json();
+    filteredModels = data.models || [];
+    MODELS = filteredModels; // keep MODELS in sync for modal lookup
+
+    const page = document.querySelector(".page");
+    const section = document.getElementById("resultsSection");
+    const sidebar = document.querySelector(".sidebar");
+    const resultsArea = document.querySelector(".results-area");
+    section.classList.remove("visible");
+    page.classList.add("results-open");
+    sidebar.scrollTop = 0;
+    if (resultsArea) resultsArea.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+
+    renderCards(filteredModels);
+    requestAnimationFrame(() => requestAnimationFrame(() => section.classList.add("visible")));
+  } catch (err) {
+    console.error(err);
+    alert("Search failed. Please try again.");
+  } finally {
+    btn.textContent = "Find Matches";
+    btn.disabled = false;
+  }
 });
 document.getElementById("resetBtn").addEventListener("click", () => {
   document.getElementById("keywordInput").value = "";
@@ -914,7 +967,6 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 document.getElementById("sortSelect").addEventListener("change", sortModels);
 document.getElementById("keywordInput").addEventListener("input", () => {
   if (document.getElementById("keywordInput").value.trim()) clearErrorState(document.getElementById("keywordInput"));
-  applyFilters();
 });
 
 // Init
@@ -931,11 +983,9 @@ setupRange("chestMin", "chestMax", "chestMinVal", "chestMaxVal");
 setupRange("hipsMin", "hipsMax", "hipsMinVal", "hipsMaxVal");
 document.getElementById("ageMin").addEventListener("input", () => {
   if (document.getElementById("ageMin").value.trim()) clearErrorState(document.getElementById("ageMin"));
-  applyFilters();
 });
 document.getElementById("ageMax").addEventListener("input", () => {
   if (document.getElementById("ageMax").value.trim()) clearErrorState(document.getElementById("ageMax"));
-  applyFilters();
 });
 
 // Don't render on load — wait for Find Matches click

@@ -95,30 +95,32 @@ def init_db():
         """)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS models (
-                id          VARCHAR(255) PRIMARY KEY,
-                korean      VARCHAR(255),
-                english     VARCHAR(255),
-                birth       INT,
-                height      INT,
-                chest       INT,
-                waist       INT,
-                hips        INT,
-                shoes       INT,
-                hair_length VARCHAR(100),
-                hair_color  VARCHAR(100),
-                eye_color   VARCHAR(100),
-                gender      VARCHAR(50),
-                nationality VARCHAR(100),
-                work_types  JSON,
-                looks       JSON,
-                rate        INT,
-                photo_url   TEXT,
-                agency_name VARCHAR(255),
-                profile_url TEXT
+                id             VARCHAR(255) PRIMARY KEY,
+                korean         VARCHAR(255),
+                english        VARCHAR(255),
+                birth          INT,
+                height         INT,
+                chest          INT,
+                waist          INT,
+                hips           INT,
+                shoes          INT,
+                hair_length    VARCHAR(100),
+                hair_color     VARCHAR(100),
+                eye_color      VARCHAR(100),
+                gender         VARCHAR(50),
+                nationality    VARCHAR(100),
+                work_types     JSON,
+                looks          JSON,
+                rate           INT,
+                photo_url      TEXT,
+                agency_name    VARCHAR(255),
+                profile_url    TEXT,
+                face_embedding LONGBLOB DEFAULT NULL
             ) CHARACTER SET utf8mb4
         """)
     conn.commit()
     conn.close()
+    ensure_face_embedding_column()
 
 
 def seed_db():
@@ -244,6 +246,91 @@ def get_all_models():
         rows = cur.fetchall()
     conn.close()
     return [_row_to_model(r) for r in rows]
+
+
+def get_models_for_search(filters: dict) -> list:
+    """Return models matching filter criteria, including raw face_embedding bytes."""
+    conditions = []
+    params = []
+
+    if filters.get("gender"):
+        placeholders = ",".join(["%s"] * len(filters["gender"]))
+        conditions.append(f"m.gender IN ({placeholders})")
+        params.extend(filters["gender"])
+    if filters.get("height_min") is not None:
+        conditions.append("m.height >= %s"); params.append(filters["height_min"])
+    if filters.get("height_max") is not None:
+        conditions.append("m.height <= %s"); params.append(filters["height_max"])
+    if filters.get("waist_min") is not None:
+        conditions.append("m.waist >= %s"); params.append(filters["waist_min"])
+    if filters.get("waist_max") is not None:
+        conditions.append("m.waist <= %s"); params.append(filters["waist_max"])
+    if filters.get("chest_min") is not None:
+        conditions.append("m.chest >= %s"); params.append(filters["chest_min"])
+    if filters.get("chest_max") is not None:
+        conditions.append("m.chest <= %s"); params.append(filters["chest_max"])
+    if filters.get("hips_min") is not None:
+        conditions.append("m.hips >= %s"); params.append(filters["hips_min"])
+    if filters.get("hips_max") is not None:
+        conditions.append("m.hips <= %s"); params.append(filters["hips_max"])
+    if filters.get("nationalities"):
+        placeholders = ",".join(["%s"] * len(filters["nationalities"]))
+        conditions.append(f"m.nationality IN ({placeholders})")
+        params.extend(filters["nationalities"])
+    if filters.get("hair_lengths"):
+        placeholders = ",".join(["%s"] * len(filters["hair_lengths"]))
+        conditions.append(f"m.hair_length IN ({placeholders})")
+        params.extend(filters["hair_lengths"])
+    if filters.get("hair_colors"):
+        placeholders = ",".join(["%s"] * len(filters["hair_colors"]))
+        conditions.append(f"m.hair_color IN ({placeholders})")
+        params.extend(filters["hair_colors"])
+    if filters.get("eye_colors"):
+        placeholders = ",".join(["%s"] * len(filters["eye_colors"]))
+        conditions.append(f"m.eye_color IN ({placeholders})")
+        params.extend(filters["eye_colors"])
+    if filters.get("age_min") is not None:
+        max_birth = 2026 - filters["age_min"]
+        conditions.append("m.birth <= %s"); params.append(max_birth)
+    if filters.get("age_max") is not None:
+        min_birth = 2026 - filters["age_max"]
+        conditions.append("m.birth >= %s"); params.append(min_birth)
+
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    sql = f"""
+        SELECT m.*, a.contact_email as agency_email, a.agency_website as agency_website_url
+        FROM models m
+        LEFT JOIN agencies a ON a.agency_name = m.agency_name
+        {where}
+    """
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute(sql, params)
+        rows = cur.fetchall()
+    conn.close()
+
+    results = []
+    for r in rows:
+        model = _row_to_model(r)
+        model["_face_embedding"] = r.get("face_embedding")  # raw bytes, not serialized
+        results.append(model)
+    return results
+
+
+def ensure_face_embedding_column():
+    """Add face_embedding column to models table if it doesn't exist yet."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT COUNT(*) as cnt FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'models' AND COLUMN_NAME = 'face_embedding'
+            """, (DB_NAME,))
+            if cur.fetchone()["cnt"] == 0:
+                cur.execute("ALTER TABLE models ADD COLUMN face_embedding LONGBLOB DEFAULT NULL")
+                conn.commit()
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":
