@@ -566,6 +566,10 @@ def fetch_profile_details(html: str, profile_url: str, rendered_text: str = "") 
             slug = profile_url.rstrip("/").split("/")[-1] or "page"
             with open(f"debug_profiles/{slug}.txt", "w") as f:
                 f.write(text)
+            # Also dump the raw HTML so we can tell whether the measurements are
+            # in the DOM at all (just hidden from innerText) vs not present yet.
+            with open(f"debug_profiles/{slug}.html", "w") as f:
+                f.write(html or "")
         except Exception:
             pass
 
