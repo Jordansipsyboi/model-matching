@@ -221,6 +221,19 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
                     pass
                 await page.wait_for_timeout(800)
 
+            # Grab the LIVE rendered text from the DOM (not the static serialized
+            # HTML from page.content()). innerText reflects the actual flattened
+            # render tree, including content injected into Shadow DOM web
+            # components — which page.content()/BeautifulSoup silently drop, since
+            # shadow roots are never included in HTML serialization. Some sites
+            # (e.g. morphmgmt's stat widget) render real, visible measurement text
+            # this way — invisible to a plain HTML scrape, visible to a human.
+            rendered_text = ""
+            try:
+                rendered_text = await page.evaluate("document.body.innerText")
+            except Exception:
+                pass
+
             html = await page.content()
 
             base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
@@ -287,13 +300,14 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
         except Exception as e:
             print(f"  Failed to load {url}: {e}")
             html = ""
+            rendered_text = ""
             roster_urls = []
             profile_urls = []
         finally:
             await browser.close()
 
     profile_urls = _dedupe_profile_urls(profile_urls)
-    return html, roster_urls, profile_urls
+    return html, roster_urls, profile_urls, rendered_text
 
 
 def _dedupe_profile_urls(profile_urls: list) -> list:
@@ -341,7 +355,7 @@ async def crawl_roster_section(url: str, agency_name: str, max_pages: int = 12) 
     current_url = url
 
     for page_num in range(1, max_pages + 1):
-        html, _, profile_urls = await fetch_page_html(current_url)
+        html, _, profile_urls, _ = await fetch_page_html(current_url)
         if not html:
             break
 
@@ -459,18 +473,26 @@ def extract_photo_url(html: str, profile_url: str) -> str:
     return ""
 
 
-def fetch_profile_details(html: str, profile_url: str) -> dict:
+def fetch_profile_details(html: str, profile_url: str, rendered_text: str = "") -> dict:
     from bs4 import BeautifulSoup
 
     photo_url = extract_photo_url(html, profile_url)
 
-    # Strip to visible text only — full HTML (nav/scripts/styles) easily blows
-    # past the 40k char window before reaching the actual measurements further
-    # down the page. Clean text is far smaller, so nothing gets truncated away.
-    soup = BeautifulSoup(html, "html.parser")
-    for tag in soup(["script", "style", "nav", "header", "footer", "noscript"]):
-        tag.decompose()
-    text = soup.get_text(" ", strip=True)[:20000]
+    # Prefer the LIVE rendered text (captured via page.evaluate("innerText"))
+    # over re-parsing the static HTML. Some sites inject content (e.g. stat
+    # widgets) into Shadow DOM, which page.content()/BeautifulSoup can never
+    # see since shadow roots aren't included in HTML serialization — but the
+    # rendered text is, since it reflects what's actually drawn on screen.
+    if rendered_text and rendered_text.strip():
+        text = rendered_text.strip()[:20000]
+    else:
+        # Fallback: strip the static HTML to visible text only (nav/scripts/
+        # styles stripped) — full HTML easily blows past the 40k char window
+        # before reaching the actual measurements further down the page.
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup(["script", "style", "nav", "header", "footer", "noscript"]):
+            tag.decompose()
+        text = soup.get_text(" ", strip=True)[:20000]
 
     # DEBUG: dump exactly what text the crawler sees for this profile, so we can
     # tell whether measurements are even present in the rendered page or not.
@@ -666,8 +688,8 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
             BOUNDS = {"height": (120, 220), "chest": (60, 130), "waist": (45, 120),
                       "hips": (60, 140), "shoes": (180, 340)}
 
-            def _extract(html):
-                d = fetch_profile_details(html, profile_url)
+            def _extract(html, rendered_text=""):
+                d = fetch_profile_details(html, profile_url, rendered_text)
                 # Reject impossible measurements (e.g. AI misreading a roster page
                 # as one person and returning chest=218). Out-of-range -> missing.
                 for f, (lo, hi) in BOUNDS.items():
@@ -676,17 +698,17 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
                         d[f] = 0
                 return d
 
-            html, _, _ = await fetch_page_html(profile_url, scroll=False, profile=True)
+            html, _, _, rendered_text = await fetch_page_html(profile_url, scroll=False, profile=True)
             if not html:
                 continue
-            details = _extract(html)
+            details = _extract(html, rendered_text)
             # If the profile-render step still didn't surface measurements, retry
             # once with a longer settle in case the SPA was just slow this time.
             if not any(details.get(f) for f in ("height", "chest", "waist", "hips")):
                 print("    Empty on first read — retrying with longer wait...")
-                html, _, _ = await fetch_page_html(profile_url, scroll=True, settle_ms=10000, profile=True)
+                html, _, _, rendered_text = await fetch_page_html(profile_url, scroll=True, settle_ms=10000, profile=True)
                 if html:
-                    retry = _extract(html)
+                    retry = _extract(html, rendered_text)
                     if any(retry.get(f) for f in ("height", "chest", "waist", "hips")):
                         details = retry
             print(f"    AI got: height={details.get('height')} chest={details.get('chest')} waist={details.get('waist')}")
@@ -757,10 +779,10 @@ async def enrich_model_profiles(models: list, base_url: str, agency_name: str):
             continue
 
         try:
-            html, _ = await fetch_page_html(profile_url)
+            html, _, _, rendered_text = await fetch_page_html(profile_url, profile=True)
             if not html:
                 continue
-            details = fetch_profile_details(html, profile_url)
+            details = fetch_profile_details(html, profile_url, rendered_text)
             if details:
                 # Merge details into model, only overwrite zeros
                 for field in ["height", "chest", "waist", "hips", "shoes"]:
@@ -811,7 +833,7 @@ async def crawl_agency(agency: dict, force: bool = False):
     url = agency["agency_website"]
     print(f"\nCrawling: {name} ({url})")
 
-    html, roster_urls, profile_urls = await fetch_page_html(url)
+    html, roster_urls, profile_urls, _ = await fetch_page_html(url)
     if not html:
         print(f"  Skipping — could not load page")
         return 0
