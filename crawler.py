@@ -145,10 +145,12 @@ ROSTER_PATTERNS = [
 ]
 
 
-async def fetch_page_html(url: str, scroll: bool = True) -> tuple[str, list, list]:
+async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000) -> tuple[str, list, list]:
     """Returns (html, roster_urls, profile_urls). Pass scroll=False for single
     profile pages — the scroll-to-load-more behavior is only needed for long
-    roster/listing pages, and skipping it makes profile crawls much faster."""
+    roster/listing pages, and skipping it makes profile crawls much faster.
+    settle_ms is how long to pause after DOM load for JS to render; bump it on
+    slow JS sites that haven't painted their content yet on the first try."""
     from urllib.parse import urljoin, urlparse
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -164,7 +166,7 @@ async def fetch_page_html(url: str, scroll: bool = True) -> tuple[str, list, lis
                 await page.goto(url, wait_until="domcontentloaded", timeout=60000)
             except Exception:
                 await page.goto(url, wait_until="commit", timeout=60000)
-            await page.wait_for_timeout(4000)
+            await page.wait_for_timeout(settle_ms)
             # Give JS-heavy sites (Wix, React, etc) extra time to render their
             # content grid. networkidle often never settles, so cap it short and
             # ignore the timeout — it's a best-effort extra wait, not required.
@@ -573,18 +575,34 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
             continue
         print(f"  Profile {i+1}/{len(profile_urls)}: {profile_url.rstrip('/').split('/')[-1]}")
         try:
+            BOUNDS = {"height": (120, 220), "chest": (60, 130), "waist": (45, 120),
+                      "hips": (60, 140), "shoes": (180, 340)}
+
+            def _extract(html):
+                d = fetch_profile_details(html, profile_url)
+                # Reject impossible measurements (e.g. AI misreading a roster page
+                # as one person and returning chest=218). Out-of-range -> missing.
+                for f, (lo, hi) in BOUNDS.items():
+                    v = d.get(f)
+                    if v and not (lo <= v <= hi):
+                        d[f] = 0
+                return d
+
             html, _, _ = await fetch_page_html(profile_url, scroll=False)
             if not html:
                 continue
-            details = fetch_profile_details(html, profile_url)
-            # Reject impossible measurements (e.g. AI misreading a roster page as
-            # one person and returning chest=218). Out-of-range -> treat as missing.
-            BOUNDS = {"height": (120, 220), "chest": (60, 130), "waist": (45, 120),
-                      "hips": (60, 140), "shoes": (180, 340)}
-            for f, (lo, hi) in BOUNDS.items():
-                v = details.get(f)
-                if v and not (lo <= v <= hi):
-                    details[f] = 0
+            details = _extract(html)
+            # Slow JS sites sometimes haven't rendered measurements yet on the
+            # first read. If we got nothing, refetch once with a much longer wait
+            # before giving up — this is the difference between a saved model and
+            # a wrongly-skipped one on sites like morphmgmt.
+            if not any(details.get(f) for f in ("height", "chest", "waist", "hips")):
+                print("    Empty on first read — retrying with longer wait...")
+                html, _, _ = await fetch_page_html(profile_url, scroll=True, settle_ms=10000)
+                if html:
+                    retry = _extract(html)
+                    if any(retry.get(f) for f in ("height", "chest", "waist", "hips")):
+                        details = retry
             print(f"    AI got: height={details.get('height')} chest={details.get('chest')} waist={details.get('waist')}")
             if not details or not details.get("english"):
                 continue
