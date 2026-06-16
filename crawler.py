@@ -242,6 +242,23 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
             except Exception:
                 pass
 
+            # Some sites (e.g. evermodel) render the whole profile card — name,
+            # measurements, photo — inside an <iframe>, which is a separate document
+            # that page.body.innerText never reaches. Pull each child frame's text
+            # too and append it so those measurements aren't lost.
+            try:
+                for fr in page.frames:
+                    if fr is page.main_frame:
+                        continue
+                    try:
+                        ftext = await fr.evaluate("document.body ? document.body.innerText : ''")
+                    except Exception:
+                        ftext = ""
+                    if ftext and ftext.strip():
+                        rendered_text = (rendered_text + "\n" + ftext) if rendered_text else ftext
+            except Exception:
+                pass
+
             html = await page.content()
 
             base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
