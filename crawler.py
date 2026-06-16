@@ -132,10 +132,18 @@ async def fetch_page_html(url: str, scroll: bool = True) -> tuple[str, list, lis
                 seen.add(full)
 
                 path = urlparse(full).path.rstrip("/")
+                segments = [s for s in path.split("/") if s]
 
+                # Dedicated profile-container paths like /model/ahlam-amani/,
+                # /models/jane-doe/, /talent/john-smith/, /portfolio/xyz/ — a known
+                # singular container segment followed by exactly one slug. These live
+                # OUTSIDE the roster path so the prefix check below would miss them.
+                PROFILE_CONTAINERS = {"model", "models", "talent", "talents", "portfolio", "profile"}
+                if len(segments) == 2 and segments[0].lower() in PROFILE_CONTAINERS:
+                    profile_urls.append(full)
                 # Profile page: starts with current roster path + more path segments
                 # Handles both /asian_women/kim-seojin/ and /models/men/1741247/yoon-se-chan
-                if current_path and path.startswith(current_path + "/"):
+                elif current_path and path.startswith(current_path + "/"):
                     remainder = path[len(current_path)+1:]
                     # Between 1 and 3 levels deeper (covers numeric ID + slug patterns)
                     depth = len([s for s in remainder.split("/") if s])
