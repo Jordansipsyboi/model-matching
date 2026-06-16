@@ -152,8 +152,17 @@ async def fetch_page_html(url: str, scroll: bool = True) -> tuple[str, list, lis
                 # /models/jane-doe/, /talent/john-smith/, /portfolio/xyz/ — a known
                 # singular container segment followed by exactly one slug. These live
                 # OUTSIDE the roster path so the prefix check below would miss them.
+                # But guard against category sections like /models/women, /models/men
+                # which look the same shape but are rosters, not people.
                 PROFILE_CONTAINERS = {"model", "models", "talent", "talents", "portfolio", "profile"}
-                if len(segments) == 2 and segments[0].lower() in PROFILE_CONTAINERS:
+                CATEGORY_WORDS = {
+                    "women", "men", "woman", "man", "female", "male", "ladies", "guys",
+                    "new", "new-faces", "newfaces", "new_faces", "main", "board",
+                    "development", "international", "asian", "europe", "influencer",
+                    "influencers", "management", "kids", "junior", "senior", "all",
+                }
+                if (len(segments) == 2 and segments[0].lower() in PROFILE_CONTAINERS
+                        and segments[1].lower() not in CATEGORY_WORDS):
                     profile_urls.append(full)
                 # Profile page: starts with current roster path + more path segments
                 # Handles both /asian_women/kim-seojin/ and /models/men/1741247/yoon-se-chan
@@ -494,6 +503,14 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
             if not html:
                 continue
             details = fetch_profile_details(html, profile_url)
+            # Reject impossible measurements (e.g. AI misreading a roster page as
+            # one person and returning chest=218). Out-of-range -> treat as missing.
+            BOUNDS = {"height": (120, 220), "chest": (60, 130), "waist": (45, 120),
+                      "hips": (60, 140), "shoes": (180, 340)}
+            for f, (lo, hi) in BOUNDS.items():
+                v = details.get(f)
+                if v and not (lo <= v <= hi):
+                    details[f] = 0
             print(f"    AI got: height={details.get('height')} chest={details.get('chest')} waist={details.get('waist')}")
             if not details or not details.get("english"):
                 continue
