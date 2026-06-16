@@ -246,7 +246,39 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000) 
             profile_urls = []
         finally:
             await browser.close()
+
+    profile_urls = _dedupe_profile_urls(profile_urls)
     return html, roster_urls, profile_urls
+
+
+def _dedupe_profile_urls(profile_urls: list) -> list:
+    """Some sites expose the same model under two URL shapes — an id-less one
+    like /models/women/jane-doe (which actually serves the ROSTER listing, not a
+    profile) and the real one /models/women/123456/jane-doe (numeric id segment).
+    When a slug appears in both shapes, keep only the id-bearing URL; otherwise
+    we'd crawl the listing page and get zero measurements."""
+    import re as _re
+    from urllib.parse import urlparse
+
+    def final_slug(u):
+        segs = [s for s in urlparse(u).path.split("/") if s]
+        return segs[-1].lower() if segs else u
+
+    def has_numeric_segment(u):
+        segs = [s for s in urlparse(u).path.split("/") if s]
+        return any(_re.fullmatch(r"\d+", s) for s in segs)
+
+    by_slug = {}
+    for u in profile_urls:
+        by_slug.setdefault(final_slug(u), []).append(u)
+
+    result = []
+    for slug, urls in by_slug.items():
+        id_forms = [u for u in urls if has_numeric_segment(u)]
+        # If any id-bearing form exists for this slug, those are the real
+        # profiles — drop the id-less duplicates. Otherwise keep what we have.
+        result.extend(id_forms if id_forms else urls)
+    return result
 
 
 async def crawl_roster_section(url: str, agency_name: str, max_pages: int = 12) -> tuple[list, list]:
