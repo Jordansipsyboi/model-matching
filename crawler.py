@@ -564,7 +564,7 @@ async def crawl_agency(agency: dict, force: bool = False):
             # (if any) have to come from the roster page itself. Drop entries with
             # nothing useful instead of saving empty placeholder rows.
             before = len(models)
-            models = [m for m in models if m.get("english") and (m.get("photo_url") or any(m.get(f) for f in ("height", "chest", "waist", "hips")))]
+            models = [m for m in models if m.get("english") and any(m.get(f) for f in ("height", "chest", "waist", "hips"))]
             if len(models) < before:
                 print(f"  Dropped {before - len(models)} model(s) with no photo or measurements (no profile pages found on this site)")
         added = save_crawled_models(models, name)
