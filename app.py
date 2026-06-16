@@ -496,6 +496,50 @@ def admin_crawl(agency_id):
     return jsonify({"status": "ok", "message": f"Crawling {agency['agency_name']}..."})
 
 
+@app.route("/admin/sync-all", methods=["POST"])
+def admin_sync_all():
+    """Re-crawl every agency whose last crawl is older than 90 days (or never
+    crawled) — the quarterly maintenance pass. Runs them one after another in a
+    background thread so the request returns immediately."""
+    if not session.get("admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    import asyncio
+    from datetime import datetime, timedelta
+    from crawler import crawl_agency
+
+    cutoff = datetime.now() - timedelta(days=90)
+    conn = database.get_connection()
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM agencies "
+            "WHERE last_crawled_at IS NULL OR last_crawled_at < %s",
+            (cutoff,),
+        )
+        rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    if not rows:
+        return jsonify({"status": "ok", "count": 0,
+                        "message": "All agencies are up to date (crawled within 90 days)."})
+
+    def do_crawl_all():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        for agency in rows:
+            try:
+                loop.run_until_complete(crawl_agency(agency))
+            except Exception as e:
+                print(f"[SyncAll] {agency.get('agency_name')} failed: {e}")
+        loop.close()
+
+    t = threading.Thread(target=do_crawl_all, daemon=True)
+    t.start()
+    names = ", ".join(a["agency_name"] for a in rows)
+    return jsonify({"status": "ok", "count": len(rows),
+                    "message": f"Syncing {len(rows)} agency(ies) due for update: {names}"})
+
+
 
 @app.route("/admin/agency-status/<int:agency_id>")
 def admin_agency_status(agency_id):

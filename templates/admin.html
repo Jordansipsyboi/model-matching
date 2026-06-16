@@ -78,6 +78,10 @@ td { padding: 10px 16px; vertical-align: middle; }
 
 <!-- AGENCIES PANEL -->
 <div class="panel active" id="panel-agencies">
+  <div style="margin-bottom:14px;">
+    <button class="crawl-btn" id="sync-all-btn" onclick="syncAll(this)">Sync All (due &gt; 90 days)</button>
+    <span id="sync-all-msg" style="margin-left:10px; font-size:0.7rem; color:#666;"></span>
+  </div>
   <table id="tbl-agencies">
     <thead>
       <tr>
@@ -302,6 +306,31 @@ function crawlAgency(id, btn) {
       }, 6000);
     })
     .catch(() => { btn.textContent = 'Error'; btn.disabled = false; });
+}
+
+// ── Sync all agencies due for a quarterly refresh ──────────────
+function syncAll(btn) {
+  btn.disabled = true;
+  btn.textContent = 'Starting...';
+  const msg = document.getElementById('sync-all-msg');
+  fetch('/admin/sync-all', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        msg.textContent = data.message;
+        btn.textContent = data.count ? `Syncing ${data.count}…` : 'Up to date ✓';
+        if (!data.count) { btn.disabled = false; }
+      } else {
+        msg.textContent = data.error || 'Could not start sync.';
+        btn.disabled = false;
+        btn.textContent = 'Sync All (due > 90 days)';
+      }
+    })
+    .catch(() => {
+      msg.textContent = 'Network error.';
+      btn.disabled = false;
+      btn.textContent = 'Sync All (due > 90 days)';
+    });
 }
 </script>
 </body>
