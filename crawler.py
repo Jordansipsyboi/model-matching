@@ -62,11 +62,11 @@ PROFILE_PROMPT = """You are extracting detailed data from a single model's profi
 Return a JSON object (not array) with these fields:
 - english: full name in English
 - korean: name in Korean if present, else empty string
-- height: height in cm as integer (convert from ft/in if needed)
-- chest: chest/bust in cm as integer
-- waist: waist in cm as integer
-- hips: hips in cm as integer
-- shoes: shoe size in mm as integer (EU size * 6.667 ≈ mm)
+- height: height in cm as integer (convert from ft/in if needed, e.g. 5'9" -> 175)
+- chest: chest/bust in cm as integer (convert from inches if the site lists it in inches, inches * 2.54 = cm)
+- waist: waist in cm as integer (convert from inches if needed)
+- hips: hips in cm as integer (convert from inches if needed)
+- shoes: shoe size in mm as integer (convert from EU/US/UK if needed: EU size * 6.667 ≈ mm)
 - hair_length: one of "short", "medium", "long", "buzzcut", "bald"
 - hair_color: e.g. "black", "brown", "blonde"
 - eye_color: e.g. "brown", "black", "blue"
@@ -93,7 +93,18 @@ async def fetch_page_html(url: str) -> tuple[str, list, list]:
         )
         try:
             await page.goto(url, wait_until="networkidle", timeout=60000)
-            await page.wait_for_timeout(8000)
+            await page.wait_for_timeout(5000)
+            # Scroll repeatedly to trigger lazy-loaded / infinite-scroll roster lists
+            # so large rosters (50-100+ models) aren't cut off after the first screen.
+            last_height = 0
+            for _ in range(10):
+                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                await page.wait_for_timeout(1200)
+                height = await page.evaluate("document.body.scrollHeight")
+                if height == last_height:
+                    break
+                last_height = height
+            await page.wait_for_timeout(1500)
             html = await page.content()
 
             base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
@@ -140,6 +151,56 @@ async def fetch_page_html(url: str) -> tuple[str, list, list]:
     return html, roster_urls, profile_urls
 
 
+async def crawl_roster_section(url: str, agency_name: str, max_pages: int = 12) -> tuple[list, list]:
+    """Crawl a roster URL (e.g. a "Women" or "Men" section) and any of its
+    numbered pagination continuations, merging models + profile links until
+    a page adds nothing new. Handles rosters split across multiple pages
+    (?page=2, /page/2/, etc.) so large sections (50-100+ models) aren't
+    cut off after the first page."""
+    import re as _re
+
+    all_models = []
+    all_profiles = []
+    seen_names = set()
+    seen_profiles = set()
+    current_url = url
+
+    for page_num in range(1, max_pages + 1):
+        html, _, profile_urls = await fetch_page_html(current_url)
+        if not html:
+            break
+
+        models = extract_models_with_ai(html, agency_name, current_url)
+        new_models = [m for m in models if m.get("english", "").strip().upper() not in seen_names]
+        new_profiles = [p for p in profile_urls if p not in seen_profiles]
+
+        if not new_models and not new_profiles and page_num > 1:
+            break
+
+        for m in new_models:
+            seen_names.add(m["english"].strip().upper())
+        seen_profiles.update(new_profiles)
+        all_models.extend(new_models)
+        all_profiles.extend(new_profiles)
+
+        if not new_models and not new_profiles:
+            break
+
+        # Guess the next page URL
+        if _re.search(r'([?&]page=)(\d+)', current_url):
+            next_url = _re.sub(r'([?&]page=)\d+', rf'\g<1>{page_num + 1}', current_url)
+        elif "?" in url:
+            next_url = f"{url}&page={page_num + 1}"
+        else:
+            next_url = f"{url}&page={page_num + 1}" if "?" in url else f"{url}?page={page_num + 1}"
+
+        if next_url == current_url:
+            break
+        current_url = next_url
+
+    return all_models, all_profiles
+
+
 def call_ai(html_chunk: str, agency_name: str, url: str) -> list:
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -178,118 +239,6 @@ def extract_models_with_ai(html: str, agency_name: str, url: str) -> list:
                 seen_names.add(name)
                 all_models.append(m)
     return all_models
-
-
-def parse_profile_html(html: str, profile_url: str) -> dict:
-    """Extract profile data using regex — free, no AI needed.
-    Works for sites with plain-text measurements like:
-    'height 176 bust 34 waist 25 hips 35 shoes 255/38.5 hair black eyes dark brown'
-    Falls back to AI if regex finds nothing useful.
-    """
-    import re
-    from bs4 import BeautifulSoup
-
-    try:
-        soup = BeautifulSoup(html, "html.parser")
-        text = soup.get_text(" ", strip=True)
-
-        result = {}
-
-        # Name — use URL slug (most reliable across sites)
-        slug = profile_url.rstrip("/").split("/")[-1]
-        # Remove numeric IDs like "1741247" at the start
-        parts = [p for p in slug.replace("-", " ").replace("_", " ").split() if not p.isdigit()]
-        result["english"] = " ".join(parts).upper()
-
-        # Height — English or Korean (신장)
-        m = re.search(r'(?:height|신장|키)[\s:]*(\d{2,3})', text, re.I)
-        if not m:
-            m = re.search(r'\b(1[6-9]\d)\s*cm', text, re.I)
-        if m:
-            h = int(m.group(1))
-            if h < 100:
-                ft_in = re.search(r"(\d)'(\d+)", text)
-                if ft_in:
-                    h = round(int(ft_in.group(1)) * 30.48 + int(ft_in.group(2)) * 2.54)
-            result["height"] = h
-
-        # Bust/Chest — English or Korean (가슴/버스트)
-        for label in [r'bust', r'chest', r'가슴', r'버스트']:
-            m = re.search(rf'{label}[\s:]*(\d{{2,3}})', text, re.I)
-            if m:
-                v = int(m.group(1))
-                result["chest"] = round(v * 2.54) if v < 60 else v  # convert inches→cm
-                break
-
-        # Waist — English or Korean (허리)
-        m = re.search(r'(?:waist|허리)[\s:]*(\d{2,3})', text, re.I)
-        if m:
-            v = int(m.group(1))
-            result["waist"] = round(v * 2.54) if v < 60 else v
-
-        # Hips — English or Korean (엉덩이/힙)
-        m = re.search(r'(?:hips?|엉덩이|힙)[\s:]*(\d{2,3})', text, re.I)
-        if m:
-            v = int(m.group(1))
-            result["hips"] = round(v * 2.54) if v < 60 else v
-
-        # Shoes — mm first, then EU; Korean (발/신발)
-        m = re.search(r'(?:shoes?|발사이즈|발|신발)[\s:]*(\d{3})', text, re.I)
-        if m:
-            result["shoes"] = int(m.group(1))
-        else:
-            m = re.search(r'(?:shoes?|발사이즈|발|신발)[\s:]*(\d{2}(?:\.\d)?)', text, re.I)
-            if m:
-                eu = float(m.group(1))
-                result["shoes"] = round((eu + 1.5) / 0.667 * 10)
-
-        # Hair color
-        m = re.search(r'hair[\s:]*([a-z ]+?)(?:\s+eyes|\s+$|\s{2})', text, re.I)
-        if m:
-            result["hair_color"] = m.group(1).strip().lower()
-            result["hair_length"] = "medium"
-
-        # Eye color — only capture 1-2 words, stop before "compcard" or other junk
-        m = re.search(r'eyes?[\s:]*([a-z]+(?:\s+[a-z]+)?)', text, re.I)
-        if m:
-            eye = m.group(1).strip().lower()
-            # Reject if it captured non-color words
-            if not any(bad in eye for bad in ["compcard", "comp", "card", "listed", "profile"]):
-                result["eye_color"] = eye
-
-        # Gender — infer from roster URL path (check women before men to avoid "women" matching "men")
-        path = profile_url.lower()
-        if any(w in path for w in ["women", "female", "ladies", "asian_women", "international_women"]):
-            result["gender"] = "female"
-        elif any(w in path for w in ["asian_men", "international_men", "/men/", "male", "guys"]):
-            result["gender"] = "male"
-
-        # Photo — try og:image first, then wp-content images, then any large img
-        from urllib.parse import urlparse
-        parsed_url = urlparse(profile_url)
-        base_origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
-
-        og = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "og:image"})
-        if og and og.get("content"):
-            result["photo_url"] = og["content"]
-        else:
-            # Find all imgs, prefer ones with wp-content or large paths (skip logos/icons)
-            for img in soup.find_all("img", src=True):
-                src = img["src"]
-                if any(skip in src.lower() for skip in ["logo", "icon", "favicon", "sprite", "placeholder"]):
-                    continue
-                if src.startswith("//"):
-                    src = "https:" + src
-                elif src.startswith("/"):
-                    src = base_origin + src
-                if src.startswith("http"):
-                    result["photo_url"] = src
-                    break
-
-        return result
-
-    except Exception:
-        return {}
 
 
 def fetch_profile_details(html: str, profile_url: str) -> dict:
@@ -461,12 +410,8 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
             html, _, _ = await fetch_page_html(profile_url)
             if not html:
                 continue
-            # Try regex first (free), fall back to AI only if needed
-            details = parse_profile_html(html, profile_url)
-            print(f"    Regex got: height={details.get('height')} chest={details.get('chest')} waist={details.get('waist')}")
-            if not details or not details.get("height"):
-                print(f"    Using AI fallback...")
-                details = fetch_profile_details(html, profile_url)
+            details = fetch_profile_details(html, profile_url)
+            print(f"    AI got: height={details.get('height')} chest={details.get('chest')} waist={details.get('waist')}")
             if not details or not details.get("english"):
                 continue
 
@@ -592,19 +537,25 @@ async def crawl_agency(agency: dict, force: bool = False):
     print(f"  AI found {len(models)} models on homepage")
 
     all_profile_urls = list(profile_urls)
+    seen_names = {m.get("english", "").strip().upper() for m in models if m.get("english")}
+    seen_profiles = set(all_profile_urls)
 
-    # If homepage had no models, try roster sub-pages
-    if not models and roster_urls:
-        print(f"  Found {len(roster_urls)} roster sub-pages: {roster_urls[:5]}")
-        for roster_url in roster_urls[:6]:
-            print(f"  Trying: {roster_url}")
-            sub_html, _, sub_profiles = await fetch_page_html(roster_url)
-            if not sub_html:
-                continue
-            sub_models = extract_models_with_ai(sub_html, name, roster_url)
-            print(f"  AI found {len(sub_models)} models, {len(sub_profiles)} profile links on {roster_url.split('/')[-2]}/")
-            models.extend(sub_models)
-            all_profile_urls.extend(sub_profiles)
+    # Always walk every roster section (men, women, etc) — not just when the
+    # homepage came up empty — since agencies commonly split their full roster
+    # across section pages that the homepage alone won't reveal.
+    if roster_urls:
+        print(f"  Found {len(roster_urls)} roster section(s): {roster_urls[:8]}")
+        for roster_url in roster_urls[:8]:
+            print(f"  Crawling section: {roster_url}")
+            sub_models, sub_profiles = await crawl_roster_section(roster_url, name)
+            new_models = [m for m in sub_models if m.get("english", "").strip().upper() not in seen_names]
+            new_profiles = [p for p in sub_profiles if p not in seen_profiles]
+            print(f"  AI found {len(new_models)} new model(s), {len(new_profiles)} new profile link(s) in {roster_url.split('/')[-2] if '/' in roster_url else roster_url}/")
+            for m in new_models:
+                seen_names.add(m["english"].strip().upper())
+            seen_profiles.update(new_profiles)
+            models.extend(new_models)
+            all_profile_urls.extend(new_profiles)
 
     if models or all_profile_urls:
         # If we have direct profile URLs, crawl them for full details

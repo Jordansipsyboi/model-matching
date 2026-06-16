@@ -1,6 +1,5 @@
 import os
 import threading
-import time
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 
 import database
@@ -232,32 +231,6 @@ def admin_agency_status(agency_id):
     if val and hasattr(val, "isoformat"):
         val = val.isoformat()
     return jsonify({"last_crawled_at": val})
-
-
-# ── Nightly scheduler ──────────────────────────────────────────
-
-def run_nightly_crawl():
-    """Runs in a background thread, crawls all agencies every 24h."""
-    while True:
-        time.sleep(24 * 60 * 60)
-        try:
-            import asyncio
-            from crawler import get_agencies_to_crawl, crawl_agency
-            agencies = get_agencies_to_crawl()
-            if agencies:
-                print(f"[Scheduler] Crawling {len(agencies)} agencies...")
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                for agency in agencies:
-                    loop.run_until_complete(crawl_agency(agency))
-                loop.close()
-                print("[Scheduler] Done.")
-        except Exception as e:
-            print(f"[Scheduler] Error: {e}")
-
-
-scheduler_thread = threading.Thread(target=run_nightly_crawl, daemon=True)
-scheduler_thread.start()
 
 
 if __name__ == "__main__":
