@@ -619,58 +619,66 @@ async def crawl_agency(agency: dict, force: bool = False):
     models = extract_models_with_ai(html, name, url)
     print(f"  AI found {len(models)} models on homepage")
 
-    all_profile_urls = list(profile_urls)
     seen_names = {m.get("english", "").strip().upper() for m in models if m.get("english")}
-    seen_profiles = set(all_profile_urls)
+    seen_profiles = set(profile_urls)
+    all_profile_urls = list(profile_urls)
+    total_saved = 0
 
-    # Always walk every roster section (men, women, etc) — not just when the
-    # homepage came up empty — since agencies commonly split their full roster
-    # across section pages that the homepage alone won't reveal.
+    # Process the homepage's own profile links right away, then each section as
+    # we discover it — saving after EACH section instead of scanning everything
+    # first. That way a crash/hang in one section never loses the sections that
+    # already finished, and data shows up in the DB much sooner.
+    async def process_batch(batch_profiles, roster_models, label):
+        nonlocal total_saved
+        if batch_profiles:
+            print(f"  [{label}] Crawling {len(batch_profiles)} profile page(s) for photos + measurements...")
+            await crawl_profiles_directly(batch_profiles, name, roster_models, force=force)
+        else:
+            # No profile pages — keep only roster rows that actually have data
+            keep = [m for m in roster_models if m.get("english") and any(m.get(f) for f in ("height", "chest", "waist", "hips"))]
+            if keep:
+                total_saved += save_crawled_models(keep, name)
+        # crawl_profiles_directly already saves each profile immediately, so just
+        # report how many of this batch are now in the DB
+        print(f"  [{label}] Done.")
+
+    if profile_urls:
+        await process_batch(profile_urls, models, "homepage")
+    elif models:
+        await process_batch([], models, "homepage")
+
     if roster_urls:
         print(f"  Found {len(roster_urls)} roster section(s): {roster_urls[:8]}")
         for roster_url in roster_urls[:8]:
+            label = roster_url.rstrip("/").split("/")[-1] or roster_url
             print(f"  Crawling section: {roster_url}")
-            sub_models, sub_profiles = await crawl_roster_section(roster_url, name)
+            try:
+                sub_models, sub_profiles = await crawl_roster_section(roster_url, name)
+            except Exception as e:
+                print(f"  Section {label} failed: {e} — skipping, keeping earlier sections")
+                continue
             new_models = [m for m in sub_models if m.get("english", "").strip().upper() not in seen_names]
             new_profiles = [p for p in sub_profiles if p not in seen_profiles]
-            print(f"  AI found {len(new_models)} new model(s), {len(new_profiles)} new profile link(s) in {roster_url.split('/')[-2] if '/' in roster_url else roster_url}/")
+            print(f"  AI found {len(new_models)} new model(s), {len(new_profiles)} new profile link(s) in {label}/")
             for m in new_models:
                 seen_names.add(m["english"].strip().upper())
             seen_profiles.update(new_profiles)
-            models.extend(new_models)
             all_profile_urls.extend(new_profiles)
+            # Save this section's people now, before moving to the next section
+            await process_batch(new_profiles, new_models, label)
 
-    if models or all_profile_urls:
-        # If we have direct profile URLs, crawl them for full details
-        if all_profile_urls:
-            print(f"  Found {len(all_profile_urls)} profile pages — crawling for photos + measurements...")
-            models = await crawl_profiles_directly(all_profile_urls, name, models, force=force)
-        else:
-            # No individual profile pages exist on this site at all — measurements
-            # (if any) have to come from the roster page itself. Drop entries with
-            # nothing useful instead of saving empty placeholder rows.
-            before = len(models)
-            models = [m for m in models if m.get("english") and any(m.get(f) for f in ("height", "chest", "waist", "hips"))]
-            if len(models) < before:
-                print(f"  Dropped {before - len(models)} model(s) with no photo or measurements (no profile pages found on this site)")
-        added = save_crawled_models(models, name)
-        print(f"  Saved {added} models to database")
-
-        # Anyone we'd previously crawled for this agency but who no longer
-        # appears on the site (by profile_url) has left — flag inactive
-        # instead of re-paying to re-extract everyone who's still there.
-        if all_profile_urls:
-            previously_known = database.get_existing_profile_urls(name)
-            current_urls = set(all_profile_urls)
-            gone_ids = [m["id"] for url_, m in previously_known.items() if url_ not in current_urls]
-            if gone_ids:
-                database.set_models_active(gone_ids, active=False)
-                print(f"  Marked {len(gone_ids)} model(s) inactive (no longer found on site)")
-    else:
-        print(f"  No models found on any page")
+    # Flag models we'd previously crawled who no longer appear anywhere on the site
+    if all_profile_urls:
+        previously_known = database.get_existing_profile_urls(name)
+        current_urls = set(all_profile_urls)
+        gone_ids = [m["id"] for url_, m in previously_known.items() if url_ not in current_urls]
+        if gone_ids:
+            database.set_models_active(gone_ids, active=False)
+            print(f"  Marked {len(gone_ids)} model(s) inactive (no longer found on site)")
 
     update_last_crawled(agency["id"])
-    return len(models)
+    print(f"  Finished {name}.")
+    return len(seen_profiles)
 
 
 async def main(url_override=None, force=False):
