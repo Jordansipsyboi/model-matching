@@ -438,6 +438,17 @@ def fetch_profile_details(html: str, profile_url: str) -> dict:
         tag.decompose()
     text = soup.get_text(" ", strip=True)[:20000]
 
+    # DEBUG: dump exactly what text the crawler sees for this profile, so we can
+    # tell whether measurements are even present in the rendered page or not.
+    if os.environ.get("CRAWL_DEBUG"):
+        try:
+            os.makedirs("debug_profiles", exist_ok=True)
+            slug = profile_url.rstrip("/").split("/")[-1] or "page"
+            with open(f"debug_profiles/{slug}.txt", "w") as f:
+                f.write(text)
+        except Exception:
+            pass
+
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1024,
