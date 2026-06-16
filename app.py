@@ -10,7 +10,6 @@ app.secret_key = "mm-secret-2025-xk9"
 ADMIN_PASSWORD = "eden2009"
 
 database.init_db()
-database.seed_db()
 
 
 # ── Public routes ──────────────────────────────────────────────
