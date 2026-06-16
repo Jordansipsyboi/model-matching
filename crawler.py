@@ -104,6 +104,13 @@ async def fetch_page_html(url: str, scroll: bool = True) -> tuple[str, list, lis
             except Exception:
                 await page.goto(url, wait_until="commit", timeout=60000)
             await page.wait_for_timeout(4000)
+            # Give JS-heavy sites (Wix, React, etc) extra time to render their
+            # content grid. networkidle often never settles, so cap it short and
+            # ignore the timeout — it's a best-effort extra wait, not required.
+            try:
+                await page.wait_for_load_state("networkidle", timeout=12000)
+            except Exception:
+                pass
             if scroll:
                 # Scroll repeatedly to trigger lazy-loaded / infinite-scroll roster lists
                 # so large rosters (50-100+ models) aren't cut off after the first screen.
