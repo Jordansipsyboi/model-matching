@@ -76,6 +76,67 @@ Measurements are sometimes written compactly like "176 / 34 / 25 / 35" (height/b
 Return ONLY the JSON object. No explanation."""
 
 
+# Same task, but reading the numbers off a compcard IMAGE instead of page text.
+# Many agencies print measurements directly on the model's photo/compcard, so
+# there is no text to scrape — only the image has the data.
+VISION_PROMPT = """This is a modeling compcard/profile image. Read any measurements printed on it.
+
+Return a JSON object with these fields (use 0 / empty string if not visible on the image):
+- height: height in cm as integer (convert from ft/in if needed, e.g. 5'9" -> 175)
+- chest: chest/bust in cm as integer (inches * 2.54 = cm)
+- waist: waist in cm as integer (convert from inches if needed)
+- hips: hips in cm as integer (convert from inches if needed)
+- shoes: shoe size in mm as integer (EU size * 6.667 ≈ mm)
+- hair_color: e.g. "black", "brown", "blonde" — best guess from the photo if not labeled
+- eye_color: e.g. "brown", "black", "blue" — best guess if not labeled
+
+Measurements are often compact like "176 / 84 / 60 / 88" (height/bust/waist/hips) or labeled in Korean (신장=height, 가슴=chest, 허리=waist, 힙=hips, 발=shoe). Convert units as needed.
+
+Return ONLY the JSON object. No explanation."""
+
+
+def extract_measurements_from_image(photo_url: str) -> dict:
+    """Vision fallback: download the compcard image and let Claude read the
+    measurements printed on it. Used when the page text has no usable numbers
+    (common — many agencies bake measurements into the photo, not the HTML)."""
+    if not photo_url:
+        return {}
+    try:
+        import urllib.request
+        import base64
+
+        headers = {"User-Agent": "Mozilla/5.0"}
+        req = urllib.request.Request(photo_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            img_bytes = resp.read()
+            ctype = resp.headers.get("Content-Type", "image/jpeg")
+
+        media_type = "image/jpeg"
+        for t in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+            if t.split("/")[1] in ctype.lower():
+                media_type = t
+                break
+
+        b64 = base64.standard_b64encode(img_bytes).decode("utf-8")
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}},
+                {"type": "text", "text": VISION_PROMPT},
+            ]}],
+        )
+        raw = message.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        return json.loads(raw)
+    except Exception as e:
+        print(f"    Vision fallback failed: {e}")
+        return {}
+
+
 # URL patterns that likely lead to model roster pages
 ROSTER_PATTERNS = [
     "women", "men", "woman", "man", "models", "talent", "roster",
@@ -346,6 +407,19 @@ def fetch_profile_details(html: str, profile_url: str) -> dict:
         details = json.loads(raw)
     except json.JSONDecodeError:
         details = {}
+
+    # If the page text gave us no usable measurements, the numbers are almost
+    # certainly printed on the compcard image instead. Fall back to reading them
+    # off the photo with Claude vision, and fill in only the missing fields.
+    measure_fields = ("height", "chest", "waist", "hips")
+    if photo_url and not any(details.get(f) for f in measure_fields):
+        print("    No measurements in text — trying compcard image (vision)...")
+        vision = extract_measurements_from_image(photo_url)
+        if vision:
+            for f in ("height", "chest", "waist", "hips", "shoes", "hair_color", "eye_color"):
+                if not details.get(f) and vision.get(f):
+                    details[f] = vision[f]
+
     if photo_url:
         details["photo_url"] = photo_url
     return details
