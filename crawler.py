@@ -72,7 +72,15 @@ Return a JSON object (not array) with these fields:
 - hair_color: e.g. "black", "brown", "blonde"
 - eye_color: e.g. "brown", "black", "blue"
 
-Measurements are sometimes written compactly like "176 / 34 / 25 / 35" (height/bust/waist/hips) or with labels in Korean (신장=height, 가슴=chest, 허리=waist, 힙=hips, 발사이즈=shoe size). Read carefully and convert units as needed.
+IMPORTANT — dual cm/imperial format: many sites print each measurement as
+"<cm>/<imperial>", e.g. "HEIGHT 185/6'1\"", "CHEST 99/39\"", "WAIST 80/31.5\"".
+In every "X/Y" pair the FIRST number (before the slash) is ALREADY in centimeters
+— just use it directly (chest here is 99, waist is 80). Do NOT try to convert the
+second number; it's the same measurement in feet/inches. "SHOE 285MM" means shoes=285.
+
+Other formats: compact like "176 / 34 / 25 / 35" (height/bust/waist/hips), or
+Korean labels (신장=height, 가슴=chest, 허리=waist, 힙=hips, 발사이즈=shoe size).
+Only convert units when a value is given solely in inches/feet/EU with no cm.
 
 Return ONLY the JSON object. No explanation."""
 
