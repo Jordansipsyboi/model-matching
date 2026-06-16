@@ -257,7 +257,10 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
             for href in links:
                 if not href or href.startswith("#") or href.startswith("mailto"):
                     continue
-                full = urljoin(base, href).split("?")[0].split("#")[0]
+                # Keep the query string: on .php sites the profile id lives there
+                # (view.php?idx=5), so stripping it would collapse every profile
+                # into one URL. Only drop the #fragment.
+                full = urljoin(base, href).split("#")[0]
                 if urlparse(full).netloc != urlparse(url).netloc:
                     continue
                 if full in seen:
@@ -287,6 +290,9 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
                     "beauty", "eurasian-beauty", "contact", "about", "news", "press",
                     "blog", "faq", "terms", "privacy", "category", "categories",
                     "search", "login", "signup", "cart", "home", "gallery", "portfolio",
+                    # Listing/index endpoints (common on .php sites) — these are
+                    # rosters, not people, even though they sit under /models/.
+                    "list", "list.php", "index", "index.php", "lists.php",
                 }
                 # A profile container ("portfolio"/"model"/"talent"/...) immediately
                 # followed by a single slug is a person page, wherever the container
@@ -333,8 +339,13 @@ def _dedupe_profile_urls(profile_urls: list) -> list:
     from urllib.parse import urlparse
 
     def final_slug(u):
-        segs = [s for s in urlparse(u).path.split("/") if s]
-        return segs[-1].lower() if segs else u
+        parsed = urlparse(u)
+        segs = [s for s in parsed.path.split("/") if s]
+        base = segs[-1].lower() if segs else u
+        # On query-param sites the same path (view.php) serves every profile and
+        # only the query (?idx=5) tells them apart — fold it into the key so they
+        # don't all dedupe down to one.
+        return f"{base}?{parsed.query}" if parsed.query else base
 
     def has_numeric_segment(u):
         segs = [s for s in urlparse(u).path.split("/") if s]
@@ -351,6 +362,27 @@ def _dedupe_profile_urls(profile_urls: list) -> list:
         # profiles — drop the id-less duplicates. Otherwise keep what we have.
         result.extend(id_forms if id_forms else urls)
     return result
+
+
+def _profile_urls_from_models(models: list, page_url: str) -> list:
+    """Profile-page links the AI read directly off each model's card in the HTML.
+    This is scheme-agnostic — it works whether a site links profiles as
+    /portfolio/sofia-s-2 or view.php?idx=5 — so it succeeds where the URL-path
+    guessing fails. Relative hrefs are resolved against the page they were found
+    on, and query strings are kept intact (they're the profile id on .php sites)."""
+    from urllib.parse import urljoin, urlparse
+
+    page_host = urlparse(page_url).netloc
+    out = []
+    for m in models:
+        href = (m.get("profile_url") or "").strip()
+        if not href or href.startswith(("#", "mailto", "javascript", "tel")):
+            continue
+        full = urljoin(page_url, href).split("#")[0]
+        if urlparse(full).netloc != page_host:
+            continue
+        out.append(full)
+    return out
 
 
 async def crawl_roster_section(url: str, agency_name: str, max_pages: int = 12) -> tuple[list, list]:
@@ -373,6 +405,8 @@ async def crawl_roster_section(url: str, agency_name: str, max_pages: int = 12) 
             break
 
         models = extract_models_with_ai(html, agency_name, current_url)
+        # Merge AI-read profile links (handles ?query-based sites) with heuristic ones.
+        profile_urls = list(dict.fromkeys(profile_urls + _profile_urls_from_models(models, current_url)))
         new_models = [m for m in models if m.get("english", "").strip().upper() not in seen_names]
         new_profiles = [p for p in profile_urls if p not in seen_profiles]
 
@@ -855,6 +889,10 @@ async def crawl_agency(agency: dict, force: bool = False):
     print(f"  Page loaded ({len(html):,} chars). Sending to AI...")
     models = extract_models_with_ai(html, name, url)
     print(f"  AI found {len(models)} models on homepage")
+
+    # Prefer the profile links the AI read straight off the page (scheme-agnostic)
+    # and merge them with whatever the URL-path heuristic found, deduped.
+    profile_urls = list(dict.fromkeys(profile_urls + _profile_urls_from_models(models, url)))
 
     seen_names = {m.get("english", "").strip().upper() for m in models if m.get("english")}
     seen_profiles = set(profile_urls)
