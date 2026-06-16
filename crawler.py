@@ -288,8 +288,13 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
                     "blog", "faq", "terms", "privacy", "category", "categories",
                     "search", "login", "signup", "cart", "home", "gallery", "portfolio",
                 }
-                if (len(segments) == 2 and segments[0].lower() in PROFILE_CONTAINERS
-                        and segments[1].lower() not in CATEGORY_WORDS):
+                # A profile container ("portfolio"/"model"/"talent"/...) immediately
+                # followed by a single slug is a person page, wherever the container
+                # sits in the path: /model/jane, /portfolio/jane, AND /w/portfolio/jane
+                # (wagency-style, where the container is NOT the first segment). The
+                # final slug must not be a category/marketing word.
+                if (len(segments) >= 2 and segments[-2].lower() in PROFILE_CONTAINERS
+                        and segments[-1].lower() not in CATEGORY_WORDS):
                     profile_urls.append(full)
                 # Profile page: starts with current roster path + more path segments
                 # Handles both /asian_women/kim-seojin/ and /models/men/1741247/yoon-se-chan
