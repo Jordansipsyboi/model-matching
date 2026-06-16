@@ -186,8 +186,17 @@ async def crawl_roster_section(url: str, agency_name: str, max_pages: int = 12) 
         seen_profiles.update(new_profiles)
         all_models.extend(new_models)
         all_profiles.extend(new_profiles)
+        print(f"    Page {page_num}: {len(new_models)} new model(s), {len(new_profiles)} new profile link(s)")
 
         if not new_models and not new_profiles:
+            break
+
+        # Only keep guessing further pages if this page actually shows evidence
+        # of pagination (a real "page=2"/"/page/2" link or next-page control) —
+        # otherwise blindly trying ?page=2, ?page=3... on a single-page roster
+        # just burns AI calls re-parsing the same content for nothing.
+        has_pagination = bool(_re.search(r'page=\d|/page/\d|rel=["\']next["\']|class=["\'][^"\']*pag(?:e|ination)', html, _re.I))
+        if not has_pagination:
             break
 
         # Guess the next page URL
