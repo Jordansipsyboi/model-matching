@@ -286,34 +286,6 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
       <input type="text" class="keyword-input" id="keywordInput" placeholder="e.g. tall, clean, commercial..." required>
     </div>
 
-    <!-- WORK TYPE -->
-    <div class="filter-section">
-      <span class="filter-label">Work Type</span>
-      <div class="chips" id="workTypeChips">
-        <div class="chip" data-value="runway">Runway</div>
-        <div class="chip" data-value="editorial">Editorial</div>
-        <div class="chip" data-value="commercial">Commercial</div>
-        <div class="chip" data-value="ecommerce">E-Commerce</div>
-        <div class="chip" data-value="campaign">Campaign</div>
-        <div class="chip" data-value="social">Social Media</div>
-        <div class="chip" data-value="lookbook">Lookbook</div>
-        <div class="chip" data-value="event">Event</div>
-      </div>
-    </div>
-
-    <!-- LOOK / VIBE -->
-    <div class="filter-section">
-      <span class="filter-label">Look / Vibe</span>
-      <div class="chips" id="lookChips">
-        <div class="chip" data-value="clean">Clean</div>
-        <div class="chip" data-value="edgy">Edgy</div>
-        <div class="chip" data-value="athletic">Athletic</div>
-        <div class="chip" data-value="highfashion">High Fashion</div>
-        <div class="chip" data-value="natural">Natural</div>
-        <div class="chip" data-value="classic">Classic</div>
-      </div>
-    </div>
-
     <!-- HEIGHT -->
     <div class="filter-section">
       <span class="filter-label required">Height (cm)</span>
@@ -588,8 +560,6 @@ function clearValidationStates() {
   [
     document.getElementById("uploadZone"),
     document.getElementById("keywordInput"),
-    document.getElementById("workTypeChips"),
-    document.getElementById("lookChips"),
     document.getElementById("ageMin"),
     document.getElementById("ageMax"),
 
@@ -768,7 +738,9 @@ function sortModels() {
 
 // Chips
 function setupChips(containerId, activeArr) {
-  document.getElementById(containerId).querySelectorAll(".chip").forEach(chip => {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.querySelectorAll(".chip").forEach(chip => {
     chip.addEventListener("click", () => {
       const val = chip.dataset.value;
       chip.classList.toggle("active");
