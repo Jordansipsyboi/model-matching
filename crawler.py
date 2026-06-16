@@ -440,17 +440,14 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
                 "profile_url": profile_url,
                 "agency": agency_name,
             }
+            if not any(model.get(f) for f in ("height", "chest", "waist", "hips")):
+                print(f"    Skipping {model['english']} — AI found no measurements on this page")
+                continue
             # Save immediately so Ctrl+C never loses progress
             save_crawled_models([model], agency_name)
             results.append(model)
         except Exception as e:
             print(f"    Error: {e}")
-
-    # Add any roster models that didn't have a profile page
-    result_names = {m["english"].upper() for m in results}
-    for m in existing_models:
-        if m.get("english", "").upper() not in result_names:
-            results.append(m)
 
     return results
 
@@ -562,6 +559,14 @@ async def crawl_agency(agency: dict, force: bool = False):
         if all_profile_urls:
             print(f"  Found {len(all_profile_urls)} profile pages — crawling for photos + measurements...")
             models = await crawl_profiles_directly(all_profile_urls, name, models, force=force)
+        else:
+            # No individual profile pages exist on this site at all — measurements
+            # (if any) have to come from the roster page itself. Drop entries with
+            # nothing useful instead of saving empty placeholder rows.
+            before = len(models)
+            models = [m for m in models if m.get("english") and (m.get("photo_url") or any(m.get(f) for f in ("height", "chest", "waist", "hips")))]
+            if len(models) < before:
+                print(f"  Dropped {before - len(models)} model(s) with no photo or measurements (no profile pages found on this site)")
         added = save_crawled_models(models, name)
         print(f"  Saved {added} models to database")
 
