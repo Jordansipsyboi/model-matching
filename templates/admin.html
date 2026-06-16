@@ -43,6 +43,9 @@ td { padding: 10px 16px; vertical-align: middle; }
 .missing { color: #ccc; }
 .crawl-btn { background: #000; color: #fff; border: none; padding: 5px 12px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; }
 .crawl-btn:disabled { background: #888; cursor: default; }
+.del-btn { background: #fff; color: #000; border: 1px solid #d0d0d0; padding: 5px 12px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; margin-left: 6px; }
+.del-btn:hover { border-color: #c00; color: #c00; }
+.del-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* Pagination */
 .pagination-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 40px; border-top: 1px solid #f0f0f0; font-size: 0.65rem; color: #888; }
@@ -106,10 +109,13 @@ td { padding: 10px 16px; vertical-align: middle; }
           {% endif %}
         </td>
         <td class="missing">{{ a.submitted_at[:10] if a.submitted_at else '—' }}</td>
-        <td><button class="crawl-btn" onclick="crawlAgency({{ a.id }}, this)">Sync Now</button></td>
+        <td style="white-space:nowrap;">
+          <button class="crawl-btn" onclick="crawlAgency({{ a.id }}, this)">Sync Now</button>
+          <button class="del-btn" onclick="deleteAgency({{ a.id }}, '{{ a.agency_name|replace("'", "\\'") }}', this)">Delete</button>
+        </td>
       </tr>
       {% else %}
-      <tr><td colspan="8" style="padding:3rem;text-align:center;color:#888;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;">No agencies registered yet</td></tr>
+      <tr><td colspan="9" style="padding:3rem;text-align:center;color:#888;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;">No agencies registered yet</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -253,6 +259,25 @@ function filterTable() {
       tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
     });
   }
+}
+
+// ── Delete agency ──────────────────────────────────────────────
+function deleteAgency(id, name, btn) {
+  if (!confirm(`Delete "${name}" and ALL of its models? This cannot be undone.`)) return;
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+  fetch(`/admin/delete-agency/${id}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        btn.closest('tr').remove();
+      } else {
+        alert(data.error || 'Could not delete agency.');
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+      }
+    })
+    .catch(() => { alert('Network error.'); btn.disabled = false; btn.textContent = 'Delete'; });
 }
 
 // ── Crawl ──────────────────────────────────────────────────────

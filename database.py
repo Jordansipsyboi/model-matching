@@ -215,6 +215,96 @@ def save_agency(agency_name, agency_website, contact_name, contact_email, market
     conn.close()
 
 
+def get_agency(agency_id):
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM agencies WHERE id = %s", (agency_id,))
+        row = cur.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def delete_agency(agency_id):
+    """Delete an agency and all of its models. Returns (agency_name, models_deleted)
+    or (None, 0) if the agency didn't exist."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT agency_name FROM agencies WHERE id = %s", (agency_id,))
+            row = cur.fetchone()
+            if not row:
+                return None, 0
+            agency_name = row["agency_name"]
+            cur.execute("DELETE FROM models WHERE agency_name = %s", (agency_name,))
+            models_deleted = cur.rowcount
+            cur.execute("DELETE FROM agencies WHERE id = %s", (agency_id,))
+        conn.commit()
+        return agency_name, models_deleted
+    finally:
+        conn.close()
+
+
+def upsert_model(m: dict, agency_name: str, face_embedding=None):
+    """Insert or update a single model (used by the CSV/ZIP roster import).
+    Mirrors the crawler's save logic so manually-uploaded rosters and crawled
+    rosters live in the same shape. Matched by a slug id from the english name,
+    so re-uploading the same roster updates rather than duplicates."""
+    import re as _re
+    if not m.get("english"):
+        return False
+    model_id = _re.sub(r"[^a-z0-9]+", "_", m["english"].lower()).strip("_")
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO models
+                    (id, korean, english, birth, height, chest, waist, hips, shoes,
+                     hair_length, hair_color, eye_color, gender, nationality,
+                     work_types, looks, rate, photo_url, agency_name, profile_url,
+                     face_embedding, active)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1)
+                ON DUPLICATE KEY UPDATE
+                    korean=VALUES(korean), english=VALUES(english), birth=VALUES(birth),
+                    height=VALUES(height), chest=VALUES(chest), waist=VALUES(waist),
+                    hips=VALUES(hips), shoes=VALUES(shoes), hair_length=VALUES(hair_length),
+                    hair_color=VALUES(hair_color), eye_color=VALUES(eye_color),
+                    gender=VALUES(gender), nationality=VALUES(nationality),
+                    work_types=VALUES(work_types), looks=VALUES(looks), rate=VALUES(rate),
+                    photo_url=VALUES(photo_url), agency_name=VALUES(agency_name),
+                    profile_url=VALUES(profile_url), active=1,
+                    face_embedding=IF(VALUES(face_embedding) IS NOT NULL, VALUES(face_embedding), face_embedding)
+                """,
+                (
+                    model_id,
+                    m.get("korean", ""),
+                    m["english"],
+                    m.get("birth", 1995),
+                    m.get("height", 0),
+                    m.get("chest", 0),
+                    m.get("waist", 0),
+                    m.get("hips", 0),
+                    m.get("shoes", 0),
+                    m.get("hair_length", "medium"),
+                    m.get("hair_color", "black"),
+                    m.get("eye_color", "brown"),
+                    m.get("gender", "female"),
+                    m.get("nationality", "other"),
+                    json.dumps(m.get("workTypes", [])),
+                    json.dumps(m.get("looks", [])),
+                    m.get("rate", 0),
+                    m.get("photo_url", ""),
+                    agency_name,
+                    m.get("profile_url", ""),
+                    face_embedding,
+                ),
+            )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 def get_all_agencies():
     conn = get_connection()
     with conn.cursor() as cur:

@@ -56,6 +56,13 @@ nav {
 .field input::placeholder, .field textarea::placeholder { color: var(--gray-400); }
 .field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239e9b90'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; cursor: pointer; }
 .field textarea { resize: vertical; min-height: 90px; }
+.field input[type="file"] { border: 1px dashed var(--gray-200); padding: 0.75rem 1rem; font-size: 0.78rem; color: var(--gray-600); cursor: pointer; background: var(--gray-100); }
+.field input[type="file"]:hover { border-color: var(--black); }
+.field input[type="file"]::file-selector-button { border: 1px solid var(--black); background: var(--white); color: var(--black); padding: 0.4rem 1rem; margin-right: 1rem; font-family: inherit; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+.template-link { font-size: 0.72rem; letter-spacing: 0.06em; color: var(--black); text-decoration: none; border-bottom: 1px solid var(--gray-200); padding-bottom: 1px; align-self: flex-start; margin-top: 0.2rem; transition: border-color 0.2s; }
+.template-link:hover { border-bottom-color: var(--black); }
+.upload-hint { font-size: 0.72rem; color: var(--gray-400); line-height: 1.6; }
+.upload-hint span { color: var(--black); }
 
 .how-it-works { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
 .step { padding: 1.5rem; border: 1px solid var(--gray-200); }
@@ -205,6 +212,35 @@ footer { border-top: 1px solid var(--gray-200); padding: 2.5rem 4rem; display: f
     </div>
   </div>
 
+  <!-- MODEL DATA UPLOAD (OPTIONAL) -->
+  <div class="block">
+    <p class="block-label">Model Data — Optional</p>
+    <h2 class="block-title">Upload your roster directly</h2>
+    <p class="block-sub">
+      Prefer to provide your own data instead of letting us read it from your website?
+      Download the template, fill in every model's details, and upload it here along with a
+      ZIP of their photos. If you skip this, we'll import your roster from your website URL
+      instead. Either way, our system keeps everything up to date over time.
+    </p>
+
+    <div class="field-grid">
+      <div class="field">
+        <label>Model Roster (CSV)</label>
+        <input type="file" id="rosterCsv" accept=".csv">
+        <a href="/model_template.csv" class="template-link" download>↓ Download CSV template (model_template.csv)</a>
+      </div>
+      <div class="field">
+        <label>Model Photos (ZIP)</label>
+        <input type="file" id="photosZip" accept=".zip">
+        <span class="upload-hint">Name each photo to match the model's name, e.g. <span>kim_jae_young.jpg</span></span>
+      </div>
+    </div>
+    <p class="upload-hint" style="margin-top:0.6rem;">
+      Template columns: name, korean_name, birth_year, gender, nationality, height_cm,
+      waist_inch, chest_cm, hips_cm, shoes_mm, hair, eyes, rate_usd
+    </p>
+  </div>
+
   <!-- SUBMIT -->
   <div class="submit-wrap">
     <p class="submit-note">By submitting you confirm you have the rights to list your agency's talent. We'll review your request within <span>48 hours</span> and email you when you're live.</p>
@@ -261,6 +297,11 @@ function submitForm() {
   formData.append('contactEmail',  contactEmail);
   formData.append('agencyMarket',  market);
   formData.append('notes',         document.getElementById('notes').value.trim());
+
+  const csvInput = document.getElementById('rosterCsv');
+  const zipInput = document.getElementById('photosZip');
+  if (csvInput && csvInput.files.length) formData.append('rosterCsv', csvInput.files[0]);
+  if (zipInput && zipInput.files.length) formData.append('photosZip', zipInput.files[0]);
 
   fetch('/api/submit-agency', { method: 'POST', body: formData })
     .then(res => res.json())

@@ -157,6 +157,138 @@ def search_models():
     return jsonify({"models": candidates, "total": len(candidates)})
 
 
+# Columns for the downloadable roster template (order matters).
+CSV_TEMPLATE_COLUMNS = [
+    "name", "korean_name", "birth_year", "gender", "nationality",
+    "height_cm", "waist_inch", "chest_cm", "hips_cm", "shoes_mm",
+    "hair", "eyes", "rate_usd",
+]
+
+PHOTO_DIR = os.path.join(os.path.dirname(__file__), "static", "model_photos")
+
+
+def _slug(name):
+    import re
+    return re.sub(r"[^a-z0-9]+", "_", (name or "").lower()).strip("_")
+
+
+def _to_int(val, default=0):
+    try:
+        return int(float(str(val).strip()))
+    except (ValueError, TypeError):
+        return default
+
+
+def _extract_local_embedding(path):
+    """Face embedding from a local image file, normalized to match search."""
+    try:
+        import numpy as np
+        comparator = get_face_comparator()
+        emb, _ = comparator.extract_face_embedding_optimized(path)
+        if emb is None:
+            return None
+        emb = emb.astype("float32")
+        norm = np.linalg.norm(emb)
+        if norm > 0:
+            emb = emb / norm
+        return emb.tobytes()
+    except Exception as e:
+        print(f"[RosterImport] embedding failed for {path}: {e}")
+        return None
+
+
+def _process_roster_upload(csv_file, zip_file, agency_name):
+    """Parse an uploaded CSV roster + optional ZIP of photos, saving each model.
+    Photos are matched to rows by slug(name) == slug(photo filename). Returns
+    the number of models imported."""
+    import csv as _csv
+    import io
+    import zipfile
+
+    # 1) Unpack photos from the ZIP (if provided) into static/model_photos,
+    #    keyed by slug so we can match them to CSV rows by name.
+    photo_by_slug = {}
+    if zip_file and zip_file.filename:
+        os.makedirs(PHOTO_DIR, exist_ok=True)
+        try:
+            with zipfile.ZipFile(zip_file) as zf:
+                for info in zf.infolist():
+                    if info.is_dir():
+                        continue
+                    fname = os.path.basename(info.filename)
+                    base, ext = os.path.splitext(fname)
+                    if ext.lower() not in (".jpg", ".jpeg", ".png", ".webp"):
+                        continue
+                    slug = _slug(base)
+                    if not slug:
+                        continue
+                    out_name = f"{slug}{ext.lower()}"
+                    out_path = os.path.join(PHOTO_DIR, out_name)
+                    with zf.open(info) as src, open(out_path, "wb") as dst:
+                        dst.write(src.read())
+                    photo_by_slug[slug] = out_name
+        except Exception as e:
+            print(f"[RosterImport] could not read ZIP: {e}")
+
+    # 2) Parse the CSV and upsert each model.
+    raw = csv_file.read()
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8-sig", errors="replace")
+    reader = _csv.DictReader(io.StringIO(raw))
+
+    imported = 0
+    for row in reader:
+        name = (row.get("name") or "").strip()
+        if not name:
+            continue
+        slug = _slug(name)
+
+        waist_in = row.get("waist_inch")
+        waist_cm = round(float(waist_in) * 2.54) if (waist_in and str(waist_in).strip()) else 0
+
+        photo_url = ""
+        face_embedding = None
+        if slug in photo_by_slug:
+            photo_url = f"/static/model_photos/{photo_by_slug[slug]}"
+            face_embedding = _extract_local_embedding(os.path.join(PHOTO_DIR, photo_by_slug[slug]))
+
+        model = {
+            "english": name,
+            "korean": (row.get("korean_name") or "").strip(),
+            "birth": _to_int(row.get("birth_year"), 1995),
+            "gender": (row.get("gender") or "").strip().lower() or "female",
+            "nationality": (row.get("nationality") or "other").strip().lower(),
+            "height": _to_int(row.get("height_cm")),
+            "waist": waist_cm,
+            "chest": _to_int(row.get("chest_cm")),
+            "hips": _to_int(row.get("hips_cm")),
+            "shoes": _to_int(row.get("shoes_mm")),
+            "hair_color": (row.get("hair") or "black").strip().lower(),
+            "eye_color": (row.get("eyes") or "brown").strip().lower(),
+            "rate": _to_int(row.get("rate_usd")),
+            "photo_url": photo_url,
+            "workTypes": [],
+            "looks": [],
+        }
+        if database.upsert_model(model, agency_name, face_embedding):
+            imported += 1
+
+    return imported
+
+
+@app.route("/model_template.csv")
+def model_template():
+    from flask import Response
+    header = ",".join(CSV_TEMPLATE_COLUMNS)
+    example = "Kim Jae Young,김재영,1998,male,korean,186,28,78,89,280,black,brown,3000"
+    csv_body = header + "\n" + example + "\n"
+    return Response(
+        csv_body,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=model_template.csv"},
+    )
+
+
 @app.route("/api/submit-agency", methods=["POST"])
 def submit_agency():
     agency_name    = request.form.get("agencyName", "").strip()
@@ -170,7 +302,24 @@ def submit_agency():
         return jsonify({"error": "Missing required fields"}), 400
 
     database.save_agency(agency_name, agency_website, contact_name, contact_email, market, notes)
-    return jsonify({"status": "ok", "message": "Agency registered"})
+
+    # Optional: agency uploaded a CSV roster (+ optional photo ZIP). If present,
+    # we import it as the primary source; the crawler then only handles future
+    # updates. If absent, we'll crawl their website instead.
+    imported = 0
+    csv_file = request.files.get("rosterCsv")
+    zip_file = request.files.get("photosZip")
+    if csv_file and csv_file.filename:
+        try:
+            imported = _process_roster_upload(csv_file, zip_file, agency_name)
+        except Exception as e:
+            print(f"[RosterImport] failed: {e}")
+            return jsonify({"error": f"Agency saved, but roster import failed: {e}"}), 500
+
+    msg = "Agency registered"
+    if imported:
+        msg += f" — imported {imported} model(s)"
+    return jsonify({"status": "ok", "message": msg, "imported": imported})
 
 
 # ── Admin routes ───────────────────────────────────────────────
@@ -199,6 +348,16 @@ def admin():
     agencies = database.get_all_agencies()
     models   = database.get_all_models()
     return render_template("admin.html", agencies=agencies, models=models)
+
+
+@app.route("/admin/delete-agency/<int:agency_id>", methods=["POST"])
+def admin_delete_agency(agency_id):
+    if not session.get("admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    name, deleted = database.delete_agency(agency_id)
+    if name is None:
+        return jsonify({"error": "Agency not found"}), 404
+    return jsonify({"status": "ok", "agency": name, "models_deleted": deleted})
 
 
 @app.route("/admin/crawl/<int:agency_id>", methods=["POST"])
