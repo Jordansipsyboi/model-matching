@@ -224,6 +224,14 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000) 
                     "new", "new-faces", "newfaces", "new_faces", "main", "board",
                     "development", "international", "asian", "europe", "influencer",
                     "influencers", "management", "kids", "junior", "senior", "all",
+                    # Marketing / category / non-person links that look like profile
+                    # slugs but aren't actual models — skip so we don't waste crawls.
+                    "dancer", "dancers", "singer", "singers", "actor", "actors",
+                    "actress", "musician", "artist", "artists", "creator", "creators",
+                    "model", "talent", "talents", "booking", "direct-booking",
+                    "beauty", "eurasian-beauty", "contact", "about", "news", "press",
+                    "blog", "faq", "terms", "privacy", "category", "categories",
+                    "search", "login", "signup", "cart", "home", "gallery", "portfolio",
                 }
                 if (len(segments) == 2 and segments[0].lower() in PROFILE_CONTAINERS
                         and segments[1].lower() not in CATEGORY_WORDS):
@@ -234,7 +242,9 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000) 
                     remainder = path[len(current_path)+1:]
                     # Between 1 and 3 levels deeper (covers numeric ID + slug patterns)
                     depth = len([s for s in remainder.split("/") if s])
-                    if remainder and 1 <= depth <= 3:
+                    # Skip non-person links (e.g. /models/women/dancer) — the final
+                    # slug being a category/marketing word means it's not a real model.
+                    if remainder and 1 <= depth <= 3 and segments[-1].lower() not in CATEGORY_WORDS:
                         profile_urls.append(full)
                 # Roster page: matches known patterns but not a profile
                 elif any(p in path.lower() for p in ROSTER_PATTERNS):
