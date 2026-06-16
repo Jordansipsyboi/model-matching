@@ -190,6 +190,18 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
         )
         page = await context.new_page()
         try:
+            # Establish a session first. Some sites (e.g. evermodel) redirect a
+            # deep link like view.php?idx=862 straight to a default page unless the
+            # request carries a session cookie that a real visitor picks up by
+            # landing on the site first. Visiting the origin in this same context
+            # seeds that cookie, so the subsequent profile navigation isn't bounced.
+            if profile:
+                try:
+                    await page.goto(origin + "/", wait_until="domcontentloaded", timeout=30000)
+                    await page.wait_for_timeout(800)
+                except Exception:
+                    pass
+
             # "domcontentloaded" instead of "networkidle": many sites keep
             # background connections (analytics, chat widgets, video) open
             # forever, so networkidle never settles and times out. We wait for
