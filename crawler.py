@@ -166,11 +166,29 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
     stats toggle is opened. We scroll, click any stats/portfolio toggle, and wait
     for measurement text (HEIGHT/CHEST/cm/신장) to actually appear before reading."""
     from urllib.parse import urljoin, urlparse
+    origin = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page(
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--disable-blink-features=AutomationControlled"],
         )
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            locale="ko-KR",
+            extra_http_headers={
+                "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+                # A same-origin Referer makes deep links (e.g. view.php?idx=) look
+                # like a real click-through from the site's own listing, which some
+                # agency sites require before serving the full profile content.
+                "Referer": origin + "/",
+            },
+        )
+        # Hide the automation flag — some sites withhold content when
+        # navigator.webdriver is true.
+        await context.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+        )
+        page = await context.new_page()
         try:
             # "domcontentloaded" instead of "networkidle": many sites keep
             # background connections (analytics, chat widgets, video) open
