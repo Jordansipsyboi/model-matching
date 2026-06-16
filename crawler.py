@@ -254,6 +254,20 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
             # shadow roots are never included in HTML serialization. Some sites
             # (e.g. morphmgmt's stat widget) render real, visible measurement text
             # this way — invisible to a plain HTML scrape, visible to a human.
+            # DEBUG: capture the final URL (reveals redirects) and a screenshot of
+            # exactly what the headless browser actually rendered — ground truth for
+            # "site renders for me but not the scraper" problems.
+            if os.environ.get("CRAWL_DEBUG"):
+                try:
+                    print(f"    [debug] requested={url}")
+                    print(f"    [debug] landed on={page.url}")
+                    os.makedirs("debug_screens", exist_ok=True)
+                    slug = url.rstrip("/").split("/")[-1] or "page"
+                    await page.screenshot(path=f"debug_screens/{slug}.png", full_page=True)
+                    print(f"    [debug] screenshot -> debug_screens/{slug}.png")
+                except Exception as e:
+                    print(f"    [debug] screenshot failed: {e}")
+
             rendered_text = ""
             try:
                 rendered_text = await page.evaluate("document.body.innerText")
