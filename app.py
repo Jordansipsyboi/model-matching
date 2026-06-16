@@ -33,7 +33,7 @@ def list_models():
 
 @app.route("/api/models")
 def api_models():
-    return jsonify(database.get_all_models())
+    return jsonify(database.get_all_models(active_only=True))
 
 
 @app.route("/api/search-models", methods=["POST"])

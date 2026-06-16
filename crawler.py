@@ -435,15 +435,27 @@ def save_crawled_models(models: list, agency_name: str):
     return added
 
 
-async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing_models: list) -> list:
-    """Crawl individual profile pages and build/enrich model list from them."""
+async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing_models: list, force: bool = False) -> list:
+    """Crawl individual profile pages and build/enrich model list from them.
+
+    On re-crawls, profiles we've already extracted before (matched by profile_url)
+    are reused as-is instead of being re-fetched/re-parsed/re-AI'd, so repeat crawls
+    only spend money on people who are new since the last crawl.
+    """
     from urllib.parse import urljoin, urlparse
 
     # Build lookup by name for merging with roster data
     by_name = {m["english"].upper(): m for m in existing_models if m.get("english")}
 
+    # People we've already crawled for this agency before (skip them unless forced)
+    known_by_url = {} if force else database.get_existing_profile_urls(agency_name)
+
     results = []
     for i, profile_url in enumerate(profile_urls):
+        if profile_url in known_by_url:
+            print(f"  Profile {i+1}/{len(profile_urls)}: already known, skipping re-crawl ({profile_url.rstrip('/').split('/')[-1]})")
+            results.append(known_by_url[profile_url])
+            continue
         print(f"  Profile {i+1}/{len(profile_urls)}: {profile_url.rstrip('/').split('/')[-1]}")
         try:
             html, _, _ = await fetch_page_html(profile_url)
@@ -564,7 +576,7 @@ def get_agencies_to_crawl() -> list:
     return [dict(r) for r in rows]
 
 
-async def crawl_agency(agency: dict):
+async def crawl_agency(agency: dict, force: bool = False):
     name = agency["agency_name"]
     url = agency["agency_website"]
     print(f"\nCrawling: {name} ({url})")
@@ -598,9 +610,20 @@ async def crawl_agency(agency: dict):
         # If we have direct profile URLs, crawl them for full details
         if all_profile_urls:
             print(f"  Found {len(all_profile_urls)} profile pages — crawling for photos + measurements...")
-            models = await crawl_profiles_directly(all_profile_urls, name, models)
+            models = await crawl_profiles_directly(all_profile_urls, name, models, force=force)
         added = save_crawled_models(models, name)
         print(f"  Saved {added} models to database")
+
+        # Anyone we'd previously crawled for this agency but who no longer
+        # appears on the site (by profile_url) has left — flag inactive
+        # instead of re-paying to re-extract everyone who's still there.
+        if all_profile_urls:
+            previously_known = database.get_existing_profile_urls(name)
+            current_urls = set(all_profile_urls)
+            gone_ids = [m["id"] for url_, m in previously_known.items() if url_ not in current_urls]
+            if gone_ids:
+                database.set_models_active(gone_ids, active=False)
+                print(f"  Marked {len(gone_ids)} model(s) inactive (no longer found on site)")
     else:
         print(f"  No models found on any page")
 
@@ -608,7 +631,7 @@ async def crawl_agency(agency: dict):
     return len(models)
 
 
-async def main(url_override=None):
+async def main(url_override=None, force=False):
     database.init_db()
 
     if url_override:
@@ -621,7 +644,7 @@ async def main(url_override=None):
         }
         agency_name = name_map.get(host, host)
         agency = {"id": 0, "agency_name": agency_name, "agency_website": url_override}
-        await crawl_agency(agency)
+        await crawl_agency(agency, force=force)
         return
 
     agencies = get_agencies_to_crawl()
@@ -632,11 +655,13 @@ async def main(url_override=None):
     print(f"Found {len(agencies)} agencies to crawl.")
     total = 0
     for agency in agencies:
-        total += await crawl_agency(agency)
+        total += await crawl_agency(agency, force=force)
 
     print(f"\nDone. Total models found: {total}")
 
 
 if __name__ == "__main__":
-    url = sys.argv[1] if len(sys.argv) > 1 else None
-    asyncio.run(main(url))
+    args = [a for a in sys.argv[1:] if a != "--force"]
+    force = "--force" in sys.argv
+    url = args[0] if args else None
+    asyncio.run(main(url, force=force))

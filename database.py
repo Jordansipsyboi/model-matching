@@ -115,12 +115,14 @@ def init_db():
                 photo_url      TEXT,
                 agency_name    VARCHAR(255),
                 profile_url    TEXT,
-                face_embedding LONGBLOB DEFAULT NULL
+                face_embedding LONGBLOB DEFAULT NULL,
+                active         TINYINT(1) DEFAULT 1
             ) CHARACTER SET utf8mb4
         """)
     conn.commit()
     conn.close()
     ensure_face_embedding_column()
+    ensure_active_column()
 
 
 def seed_db():
@@ -235,22 +237,52 @@ def get_all_agencies():
     return result
 
 
-def get_all_models():
+def get_all_models(active_only=False):
     conn = get_connection()
     with conn.cursor() as cur:
-        cur.execute("""
+        where = "WHERE m.active = 1" if active_only else ""
+        cur.execute(f"""
             SELECT m.*, a.contact_email as agency_email, a.agency_website as agency_website_url
             FROM models m
             LEFT JOIN agencies a ON a.agency_name = m.agency_name
+            {where}
         """)
         rows = cur.fetchall()
     conn.close()
     return [_row_to_model(r) for r in rows]
 
 
+def get_existing_profile_urls(agency_name):
+    """Map profile_url -> model dict for models already crawled for this agency.
+    Used to skip re-crawling people we've already extracted on a previous run."""
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM models WHERE agency_name = %s AND profile_url != '' AND active = 1",
+            (agency_name,),
+        )
+        rows = cur.fetchall()
+    conn.close()
+    return {r["profile_url"]: _row_to_model(r) for r in rows}
+
+
+def set_models_active(ids, active=True):
+    if not ids:
+        return
+    conn = get_connection()
+    with conn.cursor() as cur:
+        placeholders = ",".join(["%s"] * len(ids))
+        cur.execute(
+            f"UPDATE models SET active = %s WHERE id IN ({placeholders})",
+            [1 if active else 0, *ids],
+        )
+    conn.commit()
+    conn.close()
+
+
 def get_models_for_search(filters: dict) -> list:
     """Return models matching filter criteria, including raw face_embedding bytes."""
-    conditions = []
+    conditions = ["m.active = 1"]
     params = []
 
     if filters.get("gender"):
@@ -315,6 +347,22 @@ def get_models_for_search(filters: dict) -> list:
         model["_face_embedding"] = r.get("face_embedding")  # raw bytes, not serialized
         results.append(model)
     return results
+
+
+def ensure_active_column():
+    """Add active column to models table if it doesn't exist yet (migration safety net)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT COUNT(*) as cnt FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'models' AND COLUMN_NAME = 'active'
+            """, (DB_NAME,))
+            if cur.fetchone()["cnt"] == 0:
+                cur.execute("ALTER TABLE models ADD COLUMN active TINYINT(1) DEFAULT 1")
+                conn.commit()
+    finally:
+        conn.close()
 
 
 def ensure_face_embedding_column():
