@@ -12,6 +12,18 @@ ADMIN_PASSWORD = "eden2009"
 database.init_db()
 
 
+# Load the face-recognition model once and reuse it, instead of reloading the
+# whole InsightFace model on every search request (slow + noisy logs).
+_face_comparator = None
+
+def get_face_comparator():
+    global _face_comparator
+    if _face_comparator is None:
+        from face1n import AuraFaceComparator
+        _face_comparator = AuraFaceComparator()
+    return _face_comparator
+
+
 # ── Public routes ──────────────────────────────────────────────
 
 @app.route("/")
@@ -94,9 +106,8 @@ def search_models():
             import numpy as np
             import tempfile
             import os as _os
-            from face1n import AuraFaceComparator
 
-            comparator = AuraFaceComparator()
+            comparator = get_face_comparator()
 
             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
                 photo_file.save(tmp.name)
