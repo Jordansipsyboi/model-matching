@@ -261,22 +261,6 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
       <div class="analyzing-badge" id="analyzingBadge">● Photo ready</div>
     </div>
 
-    <!-- SIMILARITY THRESHOLD -->
-    <div class="filter-section" style="margin-top:1rem;">
-      <span class="filter-label">Similarity Threshold</span>
-      <div class="range-wrap">
-        <div class="range-row">
-          <span style="font-size:0.72rem;color:var(--gray-400);">Min match %</span>
-          <input type="number" id="thresholdInput" min="0" max="100" value="10"
-            style="width:52px;border:none;border-bottom:1px solid var(--gray-200);text-align:right;font-family:inherit;font-size:0.78rem;outline:none;padding:2px 0;"
-            oninput="document.getElementById('thresholdSlider').value=this.value">
-        </div>
-        <input type="range" id="thresholdSlider" min="0" max="100" value="10" step="1"
-          oninput="document.getElementById('thresholdInput').value=this.value">
-      </div>
-      <p style="font-size:0.65rem;color:var(--gray-400);margin-top:0.4rem;">Only applies when a reference photo is uploaded.</p>
-    </div>
-
     <!-- FILTERS GRID -->
     <div class="filters-grid">
 
@@ -855,7 +839,6 @@ document.getElementById("findBtn").addEventListener("click", async () => {
     const fd = new FormData();
     if (photoFile) {
       fd.append("photo", photoFile);
-      fd.append("threshold", (parseFloat(document.getElementById("thresholdInput").value) / 100).toString());
     }
     fd.append("keyword", document.getElementById("keywordInput").value.trim());
     fd.append("gender", activeGender.join(","));

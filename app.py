@@ -84,7 +84,10 @@ def search_models():
 
     # Step 3: face similarity search if photo uploaded
     photo_file = request.files.get("photo")
-    threshold = float(request.form.get("threshold", "0.10"))
+    # Fixed cutoff — the UI no longer exposes a slider. Face-match scores run
+    # low across different photos (angle/lighting/makeup), so 0.15 catches real
+    # lookalikes without flooding results. Tune here if needed.
+    threshold = float(request.form.get("threshold", "0.15"))
 
     if photo_file:
         try:
