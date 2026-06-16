@@ -146,12 +146,17 @@ ROSTER_PATTERNS = [
 ]
 
 
-async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000) -> tuple[str, list, list]:
+async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
+                          profile: bool = False) -> tuple[str, list, list]:
     """Returns (html, roster_urls, profile_urls). Pass scroll=False for single
     profile pages — the scroll-to-load-more behavior is only needed for long
     roster/listing pages, and skipping it makes profile crawls much faster.
     settle_ms is how long to pause after DOM load for JS to render; bump it on
-    slow JS sites that haven't painted their content yet on the first try."""
+    slow JS sites that haven't painted their content yet on the first try.
+    profile=True turns on the profile-render step: many agency sites are SPAs
+    that inject the measurement block via JS only after the photo loads / after a
+    stats toggle is opened. We scroll, click any stats/portfolio toggle, and wait
+    for measurement text (HEIGHT/CHEST/cm/신장) to actually appear before reading."""
     from urllib.parse import urljoin, urlparse
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -187,6 +192,35 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000) 
                         break
                     last_height = height
                 await page.wait_for_timeout(1500)
+
+            if profile:
+                # SPA profile pages inject the stat block (HEIGHT/CHEST/...) via JS
+                # after the photo, often hidden behind a "Portfolio"/"Stats" toggle.
+                # 1) scroll the whole page so anything lazy-rendered gets triggered.
+                for _ in range(6):
+                    await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                    await page.wait_for_timeout(800)
+                # 2) click any element whose label suggests it reveals the stats.
+                for label in ["PORTFOLIO", "Portfolio", "STATS", "Stats",
+                              "DETAILS", "Details", "MEASUREMENTS", "Measurements",
+                              "INFO", "Info", "PROFILE", "Profile"]:
+                    try:
+                        el = page.get_by_text(label, exact=False).first
+                        if await el.count() > 0:
+                            await el.click(timeout=1500)
+                            await page.wait_for_timeout(600)
+                    except Exception:
+                        pass
+                # 3) wait (best-effort) for the measurement text to actually appear.
+                try:
+                    await page.wait_for_function(
+                        "/HEIGHT|CHEST|WAIST|신장|가슴|\\b\\d{3}\\s*cm/i.test(document.body.innerText)",
+                        timeout=15000,
+                    )
+                except Exception:
+                    pass
+                await page.wait_for_timeout(800)
+
             html = await page.content()
 
             base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
@@ -642,17 +676,15 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
                         d[f] = 0
                 return d
 
-            html, _, _ = await fetch_page_html(profile_url, scroll=False)
+            html, _, _ = await fetch_page_html(profile_url, scroll=False, profile=True)
             if not html:
                 continue
             details = _extract(html)
-            # Slow JS sites sometimes haven't rendered measurements yet on the
-            # first read. If we got nothing, refetch once with a much longer wait
-            # before giving up — this is the difference between a saved model and
-            # a wrongly-skipped one on sites like morphmgmt.
+            # If the profile-render step still didn't surface measurements, retry
+            # once with a longer settle in case the SPA was just slow this time.
             if not any(details.get(f) for f in ("height", "chest", "waist", "hips")):
                 print("    Empty on first read — retrying with longer wait...")
-                html, _, _ = await fetch_page_html(profile_url, scroll=True, settle_ms=10000)
+                html, _, _ = await fetch_page_html(profile_url, scroll=True, settle_ms=10000, profile=True)
                 if html:
                     retry = _extract(html)
                     if any(retry.get(f) for f in ("height", "chest", "waist", "hips")):
