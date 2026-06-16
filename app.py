@@ -158,11 +158,24 @@ def search_models():
 
 
 # Columns for the downloadable roster template (order matters).
+# Measurement columns are unit-agnostic: agencies can type cm, inches, feet'in",
+# "99/39" dual format, "285MM", EU shoe sizes, etc. and the importer figures out
+# the real value (see _normalize_measurement). We also accept the older
+# *_cm / *_inch / *_mm column names as aliases so old templates still work.
 CSV_TEMPLATE_COLUMNS = [
     "name", "korean_name", "birth_year", "gender", "nationality",
-    "height_cm", "waist_inch", "chest_cm", "hips_cm", "shoes_mm",
+    "height", "chest", "waist", "hips", "shoes",
     "hair", "eyes", "rate_usd",
 ]
+
+# Plausible cm ranges per body measurement, used to auto-detect whether an
+# unlabelled number was typed in cm or inches.
+_MEASURE_CM_BOUNDS = {
+    "height": (120, 220),
+    "chest": (60, 130),
+    "waist": (45, 120),
+    "hips": (60, 140),
+}
 
 PHOTO_DIR = os.path.join(os.path.dirname(__file__), "static", "model_photos")
 
@@ -177,6 +190,91 @@ def _to_int(val, default=0):
         return int(float(str(val).strip()))
     except (ValueError, TypeError):
         return default
+
+
+def _normalize_measurement(raw, kind):
+    """Turn a messily-typed body measurement into a clean cm integer.
+
+    Handles, in order of priority:
+      - dual cm/imperial format "185/6'1\"", "99/39\"" -> first number is cm
+      - explicit unit suffixes: "182cm", "72 cm", "28in", "28\"", "28 inch"
+      - feet'inches": "6'1\"", "5'11"
+      - bare numbers: auto-detected as cm or inches via plausible cm range
+    Returns 0 when nothing usable is found. `kind` is one of
+    height/chest/waist/hips.
+    """
+    import re
+
+    if raw is None:
+        return 0
+    s = str(raw).strip().lower()
+    if not s:
+        return 0
+
+    lo, hi = _MEASURE_CM_BOUNDS.get(kind, (0, 10**6))
+
+    # Dual cm/imperial "<cm>/<imperial>" -> the part before the slash is cm.
+    if "/" in s:
+        s = s.split("/", 1)[0].strip()
+
+    # feet'inches"  e.g. 6'1"  or  5'11
+    m = re.match(r"^(\d+)\s*'\s*(\d+(?:\.\d+)?)?", s)
+    if "'" in s and m:
+        feet = float(m.group(1))
+        inches = float(m.group(2)) if m.group(2) else 0.0
+        return round((feet * 12 + inches) * 2.54)
+
+    # Explicit unit suffix wins over guessing.
+    has_cm = "cm" in s
+    has_in = ("inch" in s) or ("in" in s) or ('"' in s)
+
+    num = re.search(r"-?\d+(?:\.\d+)?", s)
+    if not num:
+        return 0
+    val = float(num.group())
+
+    if has_cm:
+        return round(val)
+    if has_in:
+        return round(val * 2.54)
+
+    # No unit given: decide by which range the bare number falls into.
+    if lo <= val <= hi:
+        return round(val)                 # already plausible as cm
+    inch_as_cm = val * 2.54
+    if lo <= inch_as_cm <= hi:
+        return round(inch_as_cm)          # only makes sense as inches
+    # Out of every plausible band: trust cm if it's at least in the ballpark,
+    # otherwise convert from inches as a last resort.
+    return round(val if val >= lo else inch_as_cm)
+
+
+def _normalize_shoes(raw):
+    """Shoe size -> millimetres. Accepts "285mm", "285", EU sizes like "42"/"42eu",
+    and dual "285/42" (first wins). Returns 0 when unusable."""
+    import re
+
+    if raw is None:
+        return 0
+    s = str(raw).strip().lower()
+    if not s:
+        return 0
+    if "/" in s:
+        s = s.split("/", 1)[0].strip()
+
+    num = re.search(r"-?\d+(?:\.\d+)?", s)
+    if not num:
+        return 0
+    val = float(num.group())
+
+    if "mm" in s or val >= 150:
+        return round(val)                 # already millimetres
+    if "cm" in s:
+        return round(val * 10)
+    # Bare small number -> EU size. EU 42 ~= 270mm foot length.
+    if 30 <= val <= 55:
+        return round(val * 20.0 / 3.0 - 10)
+    return round(val)
 
 
 def _extract_local_embedding(path):
@@ -243,8 +341,14 @@ def _process_roster_upload(csv_file, zip_file, agency_name):
             continue
         slug = _slug(name)
 
-        waist_in = row.get("waist_inch")
-        waist_cm = round(float(waist_in) * 2.54) if (waist_in and str(waist_in).strip()) else 0
+        # Accept both the new unit-agnostic column names and the older
+        # *_cm / *_inch / *_mm names, whichever the agency's CSV happens to use.
+        def col(*names):
+            for n in names:
+                v = row.get(n)
+                if v is not None and str(v).strip():
+                    return v
+            return ""
 
         photo_url = ""
         face_embedding = None
@@ -258,11 +362,11 @@ def _process_roster_upload(csv_file, zip_file, agency_name):
             "birth": _to_int(row.get("birth_year"), 1995),
             "gender": (row.get("gender") or "").strip().lower() or "female",
             "nationality": (row.get("nationality") or "other").strip().lower(),
-            "height": _to_int(row.get("height_cm")),
-            "waist": waist_cm,
-            "chest": _to_int(row.get("chest_cm")),
-            "hips": _to_int(row.get("hips_cm")),
-            "shoes": _to_int(row.get("shoes_mm")),
+            "height": _normalize_measurement(col("height", "height_cm"), "height"),
+            "waist": _normalize_measurement(col("waist", "waist_cm", "waist_inch"), "waist"),
+            "chest": _normalize_measurement(col("chest", "chest_cm", "bust", "bust_cm"), "chest"),
+            "hips": _normalize_measurement(col("hips", "hips_cm"), "hips"),
+            "shoes": _normalize_shoes(col("shoes", "shoes_mm", "shoe", "shoe_mm")),
             "hair_color": (row.get("hair") or "black").strip().lower(),
             "eye_color": (row.get("eyes") or "brown").strip().lower(),
             "rate": _to_int(row.get("rate_usd")),
@@ -280,8 +384,11 @@ def _process_roster_upload(csv_file, zip_file, agency_name):
 def model_template():
     from flask import Response
     header = ",".join(CSV_TEMPLATE_COLUMNS)
-    example = "Kim Jae Young,김재영,1998,male,korean,186,28,78,89,280,black,brown,3000"
-    csv_body = header + "\n" + example + "\n"
+    # Two examples on purpose: one typed in cm/mm, one typed in inches/EU, to
+    # show agencies they can use either — the importer normalizes both.
+    example_cm = "Kim Jae Young,김재영,1998,male,korean,186,98,78,89,280,black,brown,3000"
+    example_in = "Jane Doe,제인도우,1999,female,korean,5'9,34in,28in,35in,42eu,brown,brown,2500"
+    csv_body = header + "\n" + example_cm + "\n" + example_in + "\n"
     return Response(
         csv_body,
         mimetype="text/csv",
