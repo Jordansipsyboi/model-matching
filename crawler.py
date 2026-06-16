@@ -95,8 +95,15 @@ async def fetch_page_html(url: str, scroll: bool = True) -> tuple[str, list, lis
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         try:
-            await page.goto(url, wait_until="networkidle", timeout=60000)
-            await page.wait_for_timeout(3000)
+            # "domcontentloaded" instead of "networkidle": many sites keep
+            # background connections (analytics, chat widgets, video) open
+            # forever, so networkidle never settles and times out. We wait for
+            # the DOM, then a fixed pause to let content render.
+            try:
+                await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            except Exception:
+                await page.goto(url, wait_until="commit", timeout=60000)
+            await page.wait_for_timeout(4000)
             if scroll:
                 # Scroll repeatedly to trigger lazy-loaded / infinite-scroll roster lists
                 # so large rosters (50-100+ models) aren't cut off after the first screen.
