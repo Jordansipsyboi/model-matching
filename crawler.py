@@ -495,10 +495,20 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
             name_key = details["english"].upper()
             base = by_name.get(name_key, {})
 
+            # Infer gender from the URL path (e.g. /international_men/, /women/) —
+            # most reliable signal, since profile pages rarely state gender and the
+            # roster name-match can miss, which used to default everyone to female.
+            path_l = profile_url.lower()
+            url_gender = None
+            if any(w in path_l for w in ["women", "female", "ladies", "_woman", "/woman"]):
+                url_gender = "female"
+            elif any(w in path_l for w in ["_men", "/men", "male", "guys", "_man", "/man"]):
+                url_gender = "male"
+
             model = {
                 "english": details.get("english", base.get("english", "")),
                 "korean": details.get("korean") or base.get("korean", ""),
-                "gender": details.get("gender") or base.get("gender", "female"),
+                "gender": details.get("gender") or url_gender or base.get("gender", "female"),
                 "nationality": base.get("nationality", "other"),
                 "workTypes": base.get("workTypes", []),
                 "looks": base.get("looks", []),
