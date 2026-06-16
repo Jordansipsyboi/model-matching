@@ -62,6 +62,7 @@ PROFILE_PROMPT = """You are extracting detailed data from a single model's profi
 Return a JSON object (not array) with these fields:
 - english: full name in English
 - korean: name in Korean if present, else empty string
+- gender: "male" or "female" — infer from any pronouns, section labels (men/women), the model's name, or the photo description. Empty string only if truly impossible to tell.
 - height: height in cm as integer (convert from ft/in if needed, e.g. 5'9" -> 175)
 - chest: chest/bust in cm as integer (convert from inches if the site lists it in inches, inches * 2.54 = cm)
 - waist: waist in cm as integer (convert from inches if needed)
@@ -656,7 +657,7 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
             model = {
                 "english": details.get("english", base.get("english", "")),
                 "korean": details.get("korean") or base.get("korean", ""),
-                "gender": details.get("gender") or url_gender or base.get("gender", "female"),
+                "gender": url_gender or details.get("gender") or base.get("gender", "female"),
                 "nationality": base.get("nationality", "other"),
                 "workTypes": base.get("workTypes", []),
                 "looks": base.get("looks", []),
