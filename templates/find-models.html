@@ -657,12 +657,10 @@ function renderCurrentPage() {
   grid.innerHTML = pageModels.map(m => {
     const photo = m.photo_url || "";
     const tags = m.workTypes.slice(0,3).map(t => `<span class="card-tag">${t}</span>`).join("");
-    const matchBadge = (m.similarity !== null && m.similarity !== undefined) ? `<div class="match-badge visible">${m.similarity}% match</div>` : "";
     return `
     <div class="model-card" onclick="openModal('${m.id}')">
       <div class="card-img-wrap">
         <img class="card-img" src="${photo}" alt="${m.english}" loading="lazy">
-        ${matchBadge}
         <div class="card-overlay"><span class="card-overlay-btn">View Profile</span></div>
       </div>
       <div class="card-info">
