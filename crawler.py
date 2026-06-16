@@ -57,7 +57,7 @@ Look at the HTML and extract ALL models you can find. For each model return a JS
 Return ONLY a JSON array of model objects. If you cannot find any models, return an empty array [].
 Do not include any explanation, just the JSON."""
 
-PROFILE_PROMPT = """You are extracting detailed data from a single model's profile page.
+PROFILE_PROMPT = """You are extracting detailed data from a single model's profile page. Below is the page's VISIBLE TEXT (HTML tags already stripped out).
 
 Return a JSON object (not array) with these fields:
 - english: full name in English
@@ -70,7 +70,8 @@ Return a JSON object (not array) with these fields:
 - hair_length: one of "short", "medium", "long", "buzzcut", "bald"
 - hair_color: e.g. "black", "brown", "blonde"
 - eye_color: e.g. "brown", "black", "blue"
-- photo_url: the full URL of the model's main profile photo img src (absolute URL preferred)
+
+Measurements are sometimes written compactly like "176 / 34 / 25 / 35" (height/bust/waist/hips) or with labels in Korean (신장=height, 가슴=chest, 허리=waist, 힙=hips, 발사이즈=shoe size). Read carefully and convert units as needed.
 
 Return ONLY the JSON object. No explanation."""
 
@@ -83,8 +84,10 @@ ROSTER_PATTERNS = [
 ]
 
 
-async def fetch_page_html(url: str) -> tuple[str, list, list]:
-    """Returns (html, roster_urls, profile_urls)."""
+async def fetch_page_html(url: str, scroll: bool = True) -> tuple[str, list, list]:
+    """Returns (html, roster_urls, profile_urls). Pass scroll=False for single
+    profile pages — the scroll-to-load-more behavior is only needed for long
+    roster/listing pages, and skipping it makes profile crawls much faster."""
     from urllib.parse import urljoin, urlparse
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -93,18 +96,19 @@ async def fetch_page_html(url: str) -> tuple[str, list, list]:
         )
         try:
             await page.goto(url, wait_until="networkidle", timeout=60000)
-            await page.wait_for_timeout(5000)
-            # Scroll repeatedly to trigger lazy-loaded / infinite-scroll roster lists
-            # so large rosters (50-100+ models) aren't cut off after the first screen.
-            last_height = 0
-            for _ in range(10):
-                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                await page.wait_for_timeout(1200)
-                height = await page.evaluate("document.body.scrollHeight")
-                if height == last_height:
-                    break
-                last_height = height
-            await page.wait_for_timeout(1500)
+            await page.wait_for_timeout(3000)
+            if scroll:
+                # Scroll repeatedly to trigger lazy-loaded / infinite-scroll roster lists
+                # so large rosters (50-100+ models) aren't cut off after the first screen.
+                last_height = 0
+                for _ in range(10):
+                    await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                    await page.wait_for_timeout(1200)
+                    height = await page.evaluate("document.body.scrollHeight")
+                    if height == last_height:
+                        break
+                    last_height = height
+                await page.wait_for_timeout(1500)
             html = await page.content()
 
             base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
@@ -241,12 +245,57 @@ def extract_models_with_ai(html: str, agency_name: str, url: str) -> list:
     return all_models
 
 
+def extract_photo_url(html: str, profile_url: str) -> str:
+    """Deterministically find the model's main photo — no AI needed for this part."""
+    from urllib.parse import urlparse
+    from bs4 import BeautifulSoup
+
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        parsed = urlparse(profile_url)
+        base_origin = f"{parsed.scheme}://{parsed.netloc}"
+
+        og = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "og:image"})
+        if og and og.get("content"):
+            src = og["content"]
+            if src.startswith("//"):
+                return "https:" + src
+            if src.startswith("/"):
+                return base_origin + src
+            return src
+
+        for img in soup.find_all("img", src=True):
+            src = img["src"]
+            if any(skip in src.lower() for skip in ["logo", "icon", "favicon", "sprite", "placeholder"]):
+                continue
+            if src.startswith("//"):
+                src = "https:" + src
+            elif src.startswith("/"):
+                src = base_origin + src
+            if src.startswith("http"):
+                return src
+    except Exception:
+        pass
+    return ""
+
+
 def fetch_profile_details(html: str, profile_url: str) -> dict:
-    trimmed = html[:40000]
+    from bs4 import BeautifulSoup
+
+    photo_url = extract_photo_url(html, profile_url)
+
+    # Strip to visible text only — full HTML (nav/scripts/styles) easily blows
+    # past the 40k char window before reaching the actual measurements further
+    # down the page. Clean text is far smaller, so nothing gets truncated away.
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style", "nav", "header", "footer", "noscript"]):
+        tag.decompose()
+    text = soup.get_text(" ", strip=True)[:20000]
+
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1024,
-        messages=[{"role": "user", "content": f"URL: {profile_url}\n\nHTML:\n{trimmed}\n\n{PROFILE_PROMPT}"}]
+        messages=[{"role": "user", "content": f"URL: {profile_url}\n\nPAGE TEXT:\n{text}\n\n{PROFILE_PROMPT}"}]
     )
     raw = message.content[0].text.strip()
     if raw.startswith("```"):
@@ -254,9 +303,12 @@ def fetch_profile_details(html: str, profile_url: str) -> dict:
         if raw.startswith("json"):
             raw = raw[4:]
     try:
-        return json.loads(raw)
+        details = json.loads(raw)
     except json.JSONDecodeError:
-        return {}
+        details = {}
+    if photo_url:
+        details["photo_url"] = photo_url
+    return details
 
 
 def extract_embedding_from_url(photo_url: str):
@@ -407,7 +459,7 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
             continue
         print(f"  Profile {i+1}/{len(profile_urls)}: {profile_url.rstrip('/').split('/')[-1]}")
         try:
-            html, _, _ = await fetch_page_html(profile_url)
+            html, _, _ = await fetch_page_html(profile_url, scroll=False)
             if not html:
                 continue
             details = fetch_profile_details(html, profile_url)
