@@ -6,3 +6,4 @@ venv/
 instance/
 models.db
 config.json
+.claude/worktrees/
