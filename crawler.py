@@ -704,7 +704,8 @@ def download_photo(photo_url: str, model_id: str) -> str:
 
 
 def extract_embedding_from_url(photo_url: str):
-    """Download a photo from a URL and extract its face embedding. Returns bytes or None."""
+    """Extract face embedding from a photo — either a local /static/... path or
+    an external URL. Returns bytes or None."""
     try:
         import urllib.request
         import tempfile
@@ -718,10 +719,21 @@ def extract_embedding_from_url(photo_url: str):
         if comparator is None:
             return None
 
-        headers = {"User-Agent": "Mozilla/5.0"}
-        req = urllib.request.Request(photo_url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            img_data = resp.read()
+        # Local file — resolve to filesystem path and read directly.
+        if photo_url.startswith("/static/"):
+            local_path = os.path.join(os.path.dirname(__file__), photo_url.lstrip("/"))
+            if not os.path.exists(local_path):
+                return None
+            with open(local_path, "rb") as f:
+                img_data = f.read()
+        else:
+            from urllib.parse import quote, urlsplit, urlunsplit
+            parts = urlsplit(photo_url)
+            safe_url = urlunsplit(parts._replace(path=quote(parts.path, safe="/:@!$&'()*+,;=")))
+            headers = {"User-Agent": "Mozilla/5.0"}
+            req = urllib.request.Request(safe_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                img_data = resp.read()
 
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp.write(img_data)
