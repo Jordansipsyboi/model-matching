@@ -80,7 +80,7 @@ nav { display: flex; align-items: center; justify-content: space-between; paddin
 .upload-text { font-size: 0.8rem; color: var(--gray-600); margin-bottom: 0.3rem; }
 .upload-sub { font-size: 0.7rem; color: var(--gray-400); }
 .upload-cta { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-top: 0.5rem; display: block; text-decoration: underline; }
-.sim-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+.sim-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
 .sim-preset { border: 1px solid var(--gray-200); background: var(--white); padding: 8px 4px; font-family: inherit; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.5; cursor: pointer; text-align: center; transition: all 0.15s; }
 .sim-preset span { display: block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0; }
 .sim-preset:hover { border-color: var(--black); }
@@ -271,10 +271,9 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
     <div class="filter-section" id="similaritySection" style="display:none;">
       <span class="filter-label">Face Match Strictness</span>
       <div class="sim-presets">
-        <button class="sim-preset" data-val="0.10">Loose<br><span>10%</span></button>
-        <button class="sim-preset active" data-val="0.30">Moderate<br><span>30%</span></button>
-        <button class="sim-preset" data-val="0.50">Strong<br><span>50%</span></button>
-        <button class="sim-preset" data-val="0.70">Exact<br><span>70%</span></button>
+        <button class="sim-preset" data-val="0.12">Low</button>
+        <button class="sim-preset active" data-val="0.18">Medium</button>
+        <button class="sim-preset" data-val="0.24">High</button>
       </div>
       <p class="sim-hint">Higher = must look very similar. Lower = broader lookalike results.</p>
     </div>
@@ -774,7 +773,7 @@ function setupRange(minId, maxId, minValId, maxValId) {
 }
 
 // Similarity threshold presets
-let similarityThreshold = "0.30";
+let similarityThreshold = "0.18";
 document.querySelectorAll(".sim-preset").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".sim-preset").forEach(b => b.classList.remove("active"));

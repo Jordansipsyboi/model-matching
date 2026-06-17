@@ -96,10 +96,11 @@ def search_models():
 
     # Step 3: face similarity search if photo uploaded
     photo_file = request.files.get("photo")
-    # Fixed cutoff — the UI no longer exposes a slider. Face-match scores run
-    # low across different photos (angle/lighting/makeup), so 0.15 catches real
-    # lookalikes without flooding results. Tune here if needed.
-    threshold = float(request.form.get("threshold", "0.30"))
+    # Raw cosine cutoff. Real-world scores on agency photos (full-body, varied
+    # angle/lighting/makeup) run low — even the SAME person across two photos
+    # typically lands ~0.22-0.28 raw. Low/Medium/High presets in the UI send
+    # 0.12 / 0.18 / 0.24. Default to Low so nothing real gets filtered out.
+    threshold = float(request.form.get("threshold", "0.12"))
 
     if photo_file:
         try:
@@ -136,11 +137,12 @@ def search_models():
                             # score. Raw scores for the same person in different
                             # photos (makeup, angle, lighting) typically land
                             # between 0.20-0.50 — showing "20%" to a client feels
-                            # wrong. We remap [0.10, 0.70] → [0%, 100%] so the
-                            # number reflects how strong the match feels, not the
-                            # raw vector distance.
+                            # wrong. Real same-person matches on these photos top
+                            # out around 0.30 raw, so we remap [0.10, 0.30] → [0%,
+                            # 100%]. A true same-person hit (~0.24-0.28) now reads
+                            # as a strong 70-90%, matching how it actually feels.
                             display_pct = min(100.0, max(0.0,
-                                (similarity - 0.10) / (0.70 - 0.10) * 100))
+                                (similarity - 0.10) / (0.30 - 0.10) * 100))
                             m["similarity"] = round(display_pct, 1)
                             m["similarity_raw"] = round(similarity * 100, 1)
                             scored.append(m)
