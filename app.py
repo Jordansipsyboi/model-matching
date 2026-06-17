@@ -99,8 +99,9 @@ def search_models():
     # Raw cosine cutoff. Real-world scores on agency photos (full-body, varied
     # angle/lighting/makeup) run low — even the SAME person across two photos
     # typically lands ~0.22-0.28 raw. Low/Medium/High presets in the UI send
-    # 0.12 / 0.18 / 0.24. Default to Low so nothing real gets filtered out.
-    threshold = float(request.form.get("threshold", "0.12"))
+    # 0.10 / 0.20 / 0.30, displayed via the [0.10,0.30]->[0,100]% remap as
+    # 0% / 50% / 100%. Default to Medium.
+    threshold = float(request.form.get("threshold", "0.20"))
 
     if photo_file:
         try:
