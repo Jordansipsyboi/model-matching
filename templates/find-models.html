@@ -80,6 +80,12 @@ nav { display: flex; align-items: center; justify-content: space-between; paddin
 .upload-text { font-size: 0.8rem; color: var(--gray-600); margin-bottom: 0.3rem; }
 .upload-sub { font-size: 0.7rem; color: var(--gray-400); }
 .upload-cta { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-top: 0.5rem; display: block; text-decoration: underline; }
+.sim-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+.sim-preset { border: 1px solid var(--gray-200); background: var(--white); padding: 8px 4px; font-family: inherit; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.5; cursor: pointer; text-align: center; transition: all 0.15s; }
+.sim-preset span { display: block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0; }
+.sim-preset:hover { border-color: var(--black); }
+.sim-preset.active { background: var(--black); color: var(--white); border-color: var(--black); }
+.sim-hint { font-size: 0.68rem; color: var(--gray-400); margin-top: 6px; line-height: 1.5; }
 .analyzing-badge { background: var(--black); color: var(--white); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.4rem 0.8rem; display: none; margin-top: 0.5rem; }
 .validation-banner {
   display: none;
@@ -259,6 +265,18 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
         <span class="upload-cta">Choose file</span>
       </div>
       <div class="analyzing-badge" id="analyzingBadge">● Photo ready</div>
+    </div>
+
+    <!-- SIMILARITY THRESHOLD -->
+    <div class="filter-section" id="similaritySection" style="display:none;">
+      <span class="filter-label">Face Match Strictness</span>
+      <div class="sim-presets">
+        <button class="sim-preset" data-val="0.10">Loose<br><span>10%</span></button>
+        <button class="sim-preset active" data-val="0.30">Moderate<br><span>30%</span></button>
+        <button class="sim-preset" data-val="0.50">Strong<br><span>50%</span></button>
+        <button class="sim-preset" data-val="0.70">Exact<br><span>70%</span></button>
+      </div>
+      <p class="sim-hint">Higher = must look very similar. Lower = broader lookalike results.</p>
     </div>
 
     <!-- FILTERS GRID -->
@@ -754,12 +772,23 @@ function setupRange(minId, maxId, minValId, maxValId) {
   });
 }
 
+// Similarity threshold presets
+let similarityThreshold = "0.30";
+document.querySelectorAll(".sim-preset").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".sim-preset").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    similarityThreshold = btn.dataset.val;
+  });
+});
+
 // Photo upload
 document.getElementById("photoInput").addEventListener("change", function() {
   const file = this.files[0];
   if (!file) return;
   photoFile = file;
   clearErrorState(document.getElementById("uploadZone"));
+  document.getElementById("similaritySection").style.display = "block";
   const reader = new FileReader();
   reader.onload = e => {
     const preview = document.getElementById("uploadPreview");
@@ -839,6 +868,7 @@ document.getElementById("findBtn").addEventListener("click", async () => {
     const fd = new FormData();
     if (photoFile) {
       fd.append("photo", photoFile);
+      fd.append("threshold", similarityThreshold);
     }
     fd.append("keyword", document.getElementById("keywordInput").value.trim());
     fd.append("gender", activeGender.join(","));
