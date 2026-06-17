@@ -427,7 +427,7 @@ function openEditModal(modelId) {
   const msg = document.getElementById('edit-modal-msg');
   msg.textContent = 'Loading...';
   document.getElementById('edit-modal-overlay').classList.add('open');
-  fetch(`/admin/model/${encodeURIComponent(modelId)}`)
+  fetch(`/admin/model?id=${encodeURIComponent(modelId)}`)
     .then(r => r.json())
     .then(data => {
       if (data.error) { msg.textContent = data.error; return; }
@@ -469,10 +469,10 @@ function saveModel(e) {
   btn.disabled = true;
   btn.textContent = 'Saving...';
   msg.textContent = '';
-  fetch(`/admin/model/${encodeURIComponent(modelId)}`, {
+  fetch(`/admin/model`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body),
+    body: JSON.stringify({id: modelId, ...body}),
   })
     .then(r => r.json())
     .then(data => {

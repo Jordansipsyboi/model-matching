@@ -632,13 +632,13 @@ function renderCurrentPage() {
     return `
     <div class="model-card" onclick="openModal('${m.id}')">
       <div class="card-img-wrap">
-        <img class="card-img" src="${photo}" alt="${m.english}" loading="lazy">
+        <img class="card-img" src="${photo}" alt="${m.english}" loading="lazy" onerror="this.style.opacity='0.2'">
         ${m.similarity != null ? `<div class="match-badge visible">${m.similarity}% match</div>` : ""}
         <div class="card-overlay"><span class="card-overlay-btn">View Profile</span></div>
       </div>
       <div class="card-info">
         <p class="card-name">${m.english}</p>
-        <p class="card-stats">${m.height}cm · ${m.chest}/${m.waist}/${m.hips}</p>
+        <p class="card-stats">${m.height}cm · ${m.chest}/${m.waist}/${m.hips}${m.nationality ? ' · ' + m.nationality : ''}</p>
         <div class="card-tags">${tags}</div>
       </div>
     </div>`;

@@ -566,22 +566,27 @@ def admin_agency_status(agency_id):
     return jsonify({"last_crawled_at": val})
 
 
-@app.route("/admin/model/<model_id>", methods=["GET"])
-def admin_model_get(model_id):
+@app.route("/admin/model", methods=["GET"])
+def admin_model_get():
     if not session.get("admin"):
         return jsonify({"error": "Unauthorized"}), 401
+    model_id = request.args.get("id", "")
+    if not model_id:
+        return jsonify({"error": "Missing id"}), 400
     model = database.get_model(model_id)
     if model is None:
         return jsonify({"error": "Model not found"}), 404
     return jsonify(model)
 
 
-@app.route("/admin/model/<model_id>", methods=["POST"])
-def admin_model_update(model_id):
+@app.route("/admin/model", methods=["POST"])
+def admin_model_update():
     if not session.get("admin"):
         return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json(force=True) or {}
-    # Cast numeric fields
+    model_id = data.pop("id", "")
+    if not model_id:
+        return jsonify({"error": "Missing id"}), 400
     int_fields = {"birth", "height", "chest", "waist", "hips", "shoes", "rate", "active"}
     fields = {}
     for k, v in data.items():
