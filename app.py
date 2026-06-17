@@ -132,7 +132,17 @@ def search_models():
                         db_emb = np.frombuffer(emb_bytes, dtype=np.float32).copy()
                         similarity = float(np.dot(query_emb, db_emb))
                         if similarity >= threshold:
-                            m["similarity"] = round(similarity * 100, 1)
+                            # Remap raw cosine similarity to a user-friendly display
+                            # score. Raw scores for the same person in different
+                            # photos (makeup, angle, lighting) typically land
+                            # between 0.20-0.50 — showing "20%" to a client feels
+                            # wrong. We remap [0.10, 0.70] → [0%, 100%] so the
+                            # number reflects how strong the match feels, not the
+                            # raw vector distance.
+                            display_pct = min(100.0, max(0.0,
+                                (similarity - 0.10) / (0.70 - 0.10) * 100))
+                            m["similarity"] = round(display_pct, 1)
+                            m["similarity_raw"] = round(similarity * 100, 1)
                             scored.append(m)
                     else:
                         m["similarity"] = None

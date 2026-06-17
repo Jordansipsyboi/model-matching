@@ -633,6 +633,7 @@ function renderCurrentPage() {
     <div class="model-card" onclick="openModal('${m.id}')">
       <div class="card-img-wrap">
         <img class="card-img" src="${photo}" alt="${m.english}" loading="lazy">
+        ${m.similarity != null ? `<div class="match-badge visible">${m.similarity}% match</div>` : ""}
         <div class="card-overlay"><span class="card-overlay-btn">View Profile</span></div>
       </div>
       <div class="card-info">
