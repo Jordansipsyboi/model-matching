@@ -155,6 +155,7 @@ td { padding: 10px 16px; vertical-align: middle; }
         <th></th>
         <th>Name</th>
         <th>Gender</th>
+        <th>Nationality</th>
         <th>Height</th>
         <th>Chest</th>
         <th>Waist</th>
@@ -300,6 +301,7 @@ function renderModelsPage() {
         ${m.korean ? `<div class="name-sub">${m.korean}</div>` : ''}
       </td>
       <td>${m.gender || '—'}</td>
+      <td>${m.nationality || '<span class="missing">—</span>'}</td>
       <td>${m.height ? m.height + ' cm' : '<span class="missing">—</span>'}</td>
       <td>${m.chest  || '<span class="missing">—</span>'}</td>
       <td>${m.waist  || '<span class="missing">—</span>'}</td>
@@ -309,7 +311,7 @@ function renderModelsPage() {
       <td>${m.eye_color  || '—'}</td>
       <td>${m.agency_name ? `<span class="tag">${m.agency_name}</span>` : '<span class="missing">—</span>'}</td>
       <td>${m.profile_url ? `<a href="${m.profile_url}" target="_blank" class="ext-link">↗</a>` : '<span class="missing">—</span>'}</td>
-      <td style="white-space:nowrap;"><button class="edit-btn" onclick="openEditModal(${JSON.stringify(m.id)})">Edit</button></td>
+      <td style="white-space:nowrap;"><button class="edit-btn" data-model-id="${m.id}">Edit</button></td>
     </tr>`).join('');
 
   const total = modelsFiltered.length;
@@ -423,6 +425,12 @@ function crawlAgency(id, btn) {
 }
 
 // ── Edit model modal ───────────────────────────────────────────
+// Use event delegation so model IDs with special chars don't break onclick attrs.
+document.getElementById('models-tbody').addEventListener('click', function(e) {
+  const btn = e.target.closest('.edit-btn');
+  if (btn) openEditModal(btn.dataset.modelId);
+});
+
 function openEditModal(modelId) {
   const msg = document.getElementById('edit-modal-msg');
   msg.textContent = 'Loading...';
