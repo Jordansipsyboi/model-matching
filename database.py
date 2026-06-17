@@ -439,6 +439,51 @@ def get_models_for_search(filters: dict) -> list:
     return results
 
 
+_EDITABLE_COLUMNS = {
+    "english", "korean", "birth", "gender", "nationality",
+    "height", "chest", "waist", "hips", "shoes",
+    "hair_length", "hair_color", "eye_color", "rate", "active",
+}
+
+
+def get_model(model_id):
+    """Return a dict of editable fields for a single model, or None if not found."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, english, korean, birth, gender, nationality, "
+                "height, chest, waist, hips, shoes, hair_length, hair_color, "
+                "eye_color, rate, active FROM models WHERE id = %s",
+                (model_id,),
+            )
+            row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def update_model(model_id, fields: dict):
+    """Update only the allowed editable columns for a model.
+    Unknown or disallowed column names are silently ignored."""
+    safe = {k: v for k, v in fields.items() if k in _EDITABLE_COLUMNS}
+    if not safe:
+        return False
+    set_clause = ", ".join(f"{col} = %s" for col in safe)
+    values = list(safe.values()) + [model_id]
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE models SET {set_clause} WHERE id = %s",
+                values,
+            )
+            conn.commit()
+            return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def ensure_active_column():
     """Add active column to models table if it doesn't exist yet (migration safety net)."""
     conn = get_connection()

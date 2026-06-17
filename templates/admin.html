@@ -55,6 +55,28 @@ td { padding: 10px 16px; vertical-align: middle; }
 .page-btn { border: 1px solid #e0e0e0; background: #fff; padding: 4px 10px; font-family: inherit; font-size: 0.6rem; cursor: pointer; letter-spacing: 0.1em; }
 .page-btn.active { background: #000; color: #fff; border-color: #000; }
 .page-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* Edit button */
+.edit-btn { background: #fff; color: #000; border: 1px solid #d0d0d0; padding: 5px 12px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; margin-left: 6px; }
+.edit-btn:hover { border-color: #000; }
+
+/* Edit modal */
+#edit-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; }
+#edit-modal-overlay.open { display: flex; }
+#edit-modal { background: #fff; border: 1px solid #e0e0e0; padding: 36px 40px; width: 580px; max-width: 95vw; max-height: 90vh; overflow-y: auto; position: relative; }
+#edit-modal h2 { font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase; font-weight: 400; margin-bottom: 24px; }
+#edit-modal .close-btn { position: absolute; top: 14px; right: 18px; font-size: 18px; background: none; border: none; cursor: pointer; color: #888; line-height: 1; }
+#edit-modal .close-btn:hover { color: #000; }
+.edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+.edit-field { display: flex; flex-direction: column; gap: 4px; }
+.edit-field label { font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: #888; }
+.edit-field input, .edit-field select { border: none; border-bottom: 1px solid #d0d0d0; padding: 5px 0; font-size: 12px; font-family: inherit; outline: none; background: transparent; }
+.edit-field input:focus, .edit-field select:focus { border-bottom-color: #000; }
+.edit-actions { margin-top: 24px; display: flex; gap: 10px; align-items: center; }
+.edit-save-btn { background: #000; color: #fff; border: none; padding: 8px 20px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; }
+.edit-save-btn:disabled { background: #888; cursor: default; }
+.edit-cancel-btn { background: #fff; color: #000; border: 1px solid #d0d0d0; padding: 8px 20px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; }
+#edit-modal-msg { font-size: 0.65rem; color: #888; }
 </style>
 </head>
 <body>
@@ -142,6 +164,7 @@ td { padding: 10px 16px; vertical-align: middle; }
         <th>Eyes</th>
         <th>Agency</th>
         <th>Profile</th>
+        <th></th>
       </tr>
     </thead>
     <tbody id="models-tbody"></tbody>
@@ -160,6 +183,96 @@ td { padding: 10px 16px; vertical-align: middle; }
       </div>
       <div class="page-btns" id="models-page-btns"></div>
     </div>
+  </div>
+</div>
+
+<!-- EDIT MODEL MODAL -->
+<div id="edit-modal-overlay" onclick="handleOverlayClick(event)">
+  <div id="edit-modal">
+    <button class="close-btn" onclick="closeEditModal()" title="Close">&#x2715;</button>
+    <h2>Edit Model</h2>
+    <form id="edit-form" onsubmit="saveModel(event)">
+      <input type="hidden" id="edit-model-id">
+      <div class="edit-grid">
+        <div class="edit-field">
+          <label>English Name</label>
+          <input type="text" id="ef-english" name="english">
+        </div>
+        <div class="edit-field">
+          <label>Korean Name</label>
+          <input type="text" id="ef-korean" name="korean">
+        </div>
+        <div class="edit-field">
+          <label>Birth Year</label>
+          <input type="number" id="ef-birth" name="birth" min="1940" max="2010">
+        </div>
+        <div class="edit-field">
+          <label>Gender</label>
+          <select id="ef-gender" name="gender">
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="nonbinary">Non-binary</option>
+          </select>
+        </div>
+        <div class="edit-field">
+          <label>Nationality</label>
+          <input type="text" id="ef-nationality" name="nationality">
+        </div>
+        <div class="edit-field">
+          <label>Rate (USD)</label>
+          <input type="number" id="ef-rate" name="rate" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Height (cm)</label>
+          <input type="number" id="ef-height" name="height" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Chest (cm)</label>
+          <input type="number" id="ef-chest" name="chest" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Waist (cm)</label>
+          <input type="number" id="ef-waist" name="waist" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Hips (cm)</label>
+          <input type="number" id="ef-hips" name="hips" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Shoes (mm)</label>
+          <input type="number" id="ef-shoes" name="shoes" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Hair Length</label>
+          <select id="ef-hair_length" name="hair_length">
+            <option value="buzzcut">Buzzcut</option>
+            <option value="short">Short</option>
+            <option value="medium">Medium</option>
+            <option value="long">Long</option>
+          </select>
+        </div>
+        <div class="edit-field">
+          <label>Hair Color</label>
+          <input type="text" id="ef-hair_color" name="hair_color">
+        </div>
+        <div class="edit-field">
+          <label>Eye Color</label>
+          <input type="text" id="ef-eye_color" name="eye_color">
+        </div>
+        <div class="edit-field">
+          <label>Active</label>
+          <select id="ef-active" name="active">
+            <option value="1">Active</option>
+            <option value="0">Inactive</option>
+          </select>
+        </div>
+      </div>
+      <div class="edit-actions">
+        <button type="submit" class="edit-save-btn" id="edit-save-btn">Save</button>
+        <button type="button" class="edit-cancel-btn" onclick="closeEditModal()">Cancel</button>
+        <span id="edit-modal-msg"></span>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -196,6 +309,7 @@ function renderModelsPage() {
       <td>${m.eye_color  || '—'}</td>
       <td>${m.agency_name ? `<span class="tag">${m.agency_name}</span>` : '<span class="missing">—</span>'}</td>
       <td>${m.profile_url ? `<a href="${m.profile_url}" target="_blank" class="ext-link">↗</a>` : '<span class="missing">—</span>'}</td>
+      <td style="white-space:nowrap;"><button class="edit-btn" onclick="openEditModal(${JSON.stringify(m.id)})">Edit</button></td>
     </tr>`).join('');
 
   const total = modelsFiltered.length;
@@ -306,6 +420,78 @@ function crawlAgency(id, btn) {
       }, 6000);
     })
     .catch(() => { btn.textContent = 'Error'; btn.disabled = false; });
+}
+
+// ── Edit model modal ───────────────────────────────────────────
+function openEditModal(modelId) {
+  const msg = document.getElementById('edit-modal-msg');
+  msg.textContent = 'Loading...';
+  document.getElementById('edit-modal-overlay').classList.add('open');
+  fetch(`/admin/model/${encodeURIComponent(modelId)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { msg.textContent = data.error; return; }
+      document.getElementById('edit-model-id').value = data.id;
+      const fields = ['english','korean','birth','gender','nationality','rate',
+                      'height','chest','waist','hips','shoes','hair_length',
+                      'hair_color','eye_color','active'];
+      fields.forEach(f => {
+        const el = document.getElementById('ef-' + f);
+        if (el) el.value = data[f] != null ? data[f] : '';
+      });
+      msg.textContent = '';
+    })
+    .catch(() => { msg.textContent = 'Failed to load model.'; });
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal-overlay').classList.remove('open');
+  document.getElementById('edit-modal-msg').textContent = '';
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('edit-modal-overlay')) closeEditModal();
+}
+
+function saveModel(e) {
+  e.preventDefault();
+  const modelId = document.getElementById('edit-model-id').value;
+  const btn = document.getElementById('edit-save-btn');
+  const msg = document.getElementById('edit-modal-msg');
+  const fields = ['english','korean','birth','gender','nationality','rate',
+                  'height','chest','waist','hips','shoes','hair_length',
+                  'hair_color','eye_color','active'];
+  const body = {};
+  fields.forEach(f => {
+    const el = document.getElementById('ef-' + f);
+    if (el) body[f] = el.value;
+  });
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  msg.textContent = '';
+  fetch(`/admin/model/${encodeURIComponent(modelId)}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = 'Save';
+      if (data.status === 'ok') {
+        msg.textContent = 'Saved.';
+        const idx = ALL_MODELS.findIndex(m => m.id === modelId);
+        if (idx !== -1) {
+          Object.assign(ALL_MODELS[idx], body);
+          modelsFiltered = modelsFiltered.map(m => m.id === modelId ? ALL_MODELS[idx] : m);
+          renderModelsPage();
+        }
+        setTimeout(closeEditModal, 800);
+      } else {
+        msg.textContent = data.error || 'Save failed.';
+      }
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Save'; msg.textContent = 'Network error.'; });
 }
 
 // ── Sync all agencies due for a quarterly refresh ──────────────
