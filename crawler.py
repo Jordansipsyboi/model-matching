@@ -649,6 +649,51 @@ def fetch_profile_details(html: str, profile_url: str, rendered_text: str = "") 
     return details
 
 
+PHOTO_DIR = os.path.join(os.path.dirname(__file__), "static", "model_photos")
+
+
+def download_photo(photo_url: str, model_id: str) -> str:
+    """Download a photo from an external URL, save it locally, and return the
+    local /static/... path. Returns the original URL unchanged on any failure.
+    Skips download if a local file already exists for this model_id."""
+    import urllib.request
+    import urllib.error
+
+    if not photo_url or photo_url.startswith("/static/"):
+        return photo_url  # already local
+
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+
+    # Try common image extensions; fall back to .jpg
+    ext = ".jpg"
+    for candidate in (".jpg", ".jpeg", ".png", ".webp"):
+        if photo_url.lower().split("?")[0].endswith(candidate):
+            ext = candidate
+            break
+
+    filename = f"{model_id}{ext}"
+    local_path = os.path.join(PHOTO_DIR, filename)
+
+    if os.path.exists(local_path):
+        return f"/static/model_photos/{filename}"
+
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "/".join(photo_url.split("/")[:3]) + "/",
+        }
+        req = urllib.request.Request(photo_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = resp.read()
+        with open(local_path, "wb") as f:
+            f.write(data)
+        return f"/static/model_photos/{filename}"
+    except Exception as e:
+        print(f"    [photo] could not download {photo_url}: {e}")
+        return photo_url  # keep external URL as fallback
+
+
 def extract_embedding_from_url(photo_url: str):
     """Download a photo from a URL and extract its face embedding. Returns bytes or None."""
     try:
@@ -713,11 +758,14 @@ def save_crawled_models(models: list, agency_name: str):
         import re as _re
         model_id = _re.sub(r'[^a-z0-9]+', '_', m["english"].lower()).strip('_')
 
-        # Extract face embedding from photo if available
+        # Download photo locally so it's always available (no external URL dependency)
+        # then extract the face embedding from the local file.
         face_embedding = None
         if m.get("photo_url"):
+            local_url = download_photo(m["photo_url"], model_id)
+            m["photo_url"] = local_url
             print(f"    Extracting face embedding for {m['english']}...")
-            face_embedding = extract_embedding_from_url(m["photo_url"])
+            face_embedding = extract_embedding_from_url(local_url)
             if face_embedding:
                 print(f"    ✓ Face embedding saved ({len(face_embedding)} bytes)")
 
@@ -1050,8 +1098,40 @@ async def main(url_override=None, force=False):
     print(f"\nDone. Total models found: {total}")
 
 
+def backfill_photos():
+    """One-time script: download all external photo URLs in the DB to local storage
+    and update the photo_url to the local path. Run with:
+        python crawler.py --backfill-photos
+    Safe to re-run — skips models that already have a local photo."""
+    import re as _re
+    conn = database.get_connection()
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, english, photo_url FROM models WHERE photo_url != '' AND photo_url NOT LIKE '/static/%'")
+        rows = cur.fetchall()
+    conn.close()
+
+    print(f"Backfilling photos for {len(rows)} models...")
+    for row in rows:
+        model_id = row["id"] or _re.sub(r'[^a-z0-9]+', '_', row["english"].lower()).strip('_')
+        local_url = download_photo(row["photo_url"], model_id)
+        if local_url != row["photo_url"]:
+            conn = database.get_connection()
+            with conn.cursor() as cur:
+                cur.execute("UPDATE models SET photo_url = %s WHERE id = %s", (local_url, row["id"]))
+            conn.commit()
+            conn.close()
+            print(f"  ✓ {row['english']} → {local_url}")
+        else:
+            print(f"  ✗ {row['english']} — download failed, keeping external URL")
+    print("Backfill done.")
+
+
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if a != "--force"]
-    force = "--force" in sys.argv
-    url = args[0] if args else None
-    asyncio.run(main(url, force=force))
+    if "--backfill-photos" in sys.argv:
+        database.init_db()
+        backfill_photos()
+    else:
+        args = [a for a in sys.argv[1:] if a != "--force"]
+        force = "--force" in sys.argv
+        url = args[0] if args else None
+        asyncio.run(main(url, force=force))
