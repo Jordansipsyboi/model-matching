@@ -1096,13 +1096,25 @@ async def main(url_override=None, force=False):
     if url_override:
         from urllib.parse import urlparse
         host = urlparse(url_override).netloc.replace("www.", "")
-        name_map = {
-            "jmodelmanagement.co.kr": "J Model Management",
-            "morphmgmt.com": "MORPH Management",
-            "models.com": "Models.com",
-        }
-        agency_name = name_map.get(host, host)
-        agency = {"id": 0, "agency_name": agency_name, "agency_website": url_override}
+        # Reuse the agency the user already registered (match by website host) so
+        # models stay tagged under the registered name and last_crawled updates.
+        registered = database.get_agency_by_website(host)
+        if registered:
+            agency = {
+                "id": registered["id"],
+                "agency_name": registered["agency_name"],
+                "agency_website": url_override,
+            }
+            print(f"Using registered agency: {registered['agency_name']} (id {registered['id']})")
+        else:
+            name_map = {
+                "jmodelmanagement.co.kr": "J Model Management",
+                "morphmgmt.com": "MORPH Management",
+                "models.com": "Models.com",
+            }
+            agency_name = name_map.get(host, host)
+            agency = {"id": 0, "agency_name": agency_name, "agency_website": url_override}
+            print(f"No registered agency for {host}; using name '{agency_name}'")
         await crawl_agency(agency, force=force)
         return
 

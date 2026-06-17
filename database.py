@@ -224,6 +224,29 @@ def get_agency(agency_id):
     return dict(row) if row else None
 
 
+def get_agency_by_website(host):
+    """Find a registered agency whose website matches the given host (case-insensitive,
+    ignores scheme/www/path). Returns the agency dict or None.
+    Used so a manual URL crawl reuses the agency the user already registered,
+    instead of creating an orphaned record under a different name."""
+    host = (host or "").lower().replace("www.", "").strip("/")
+    if not host:
+        return None
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM agencies")
+        rows = cur.fetchall()
+    conn.close()
+    for r in rows:
+        site = (r.get("agency_website") or "").lower()
+        # normalize stored website to a bare host for comparison
+        site = site.replace("https://", "").replace("http://", "").replace("www.", "").strip("/")
+        site_host = site.split("/")[0]
+        if site_host and (site_host == host or host in site_host or site_host in host):
+            return dict(r)
+    return None
+
+
 def delete_agency(agency_id):
     """Delete an agency and all of its models. Returns (agency_name, models_deleted)
     or (None, 0) if the agency didn't exist."""
