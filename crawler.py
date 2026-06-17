@@ -677,26 +677,30 @@ def download_photo(photo_url: str, model_id: str) -> str:
     if os.path.exists(local_path):
         return f"/static/model_photos/{filename}"
 
-    try:
-        # Percent-encode non-ASCII characters in the URL (e.g. Korean filenames
-        # on J Model like 스크린샷-2026-03-06.jpg) so urllib can handle them.
-        from urllib.parse import quote, urlsplit, urlunsplit
-        parts = urlsplit(photo_url)
-        safe_url = urlunsplit(parts._replace(path=quote(parts.path, safe="/:@!$&'()*+,;=")))
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                          "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Referer": "/".join(photo_url.split("/")[:3]) + "/",
-        }
-        req = urllib.request.Request(safe_url, headers=headers)
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = resp.read()
-        with open(local_path, "wb") as f:
-            f.write(data)
-        return f"/static/model_photos/{filename}"
-    except Exception as e:
-        print(f"    [photo] could not download {photo_url}: {e}")
-        return photo_url  # keep external URL as fallback
+    from urllib.parse import quote, urlsplit, urlunsplit
+    import time
+    parts = urlsplit(photo_url)
+    safe_url = urlunsplit(parts._replace(path=quote(parts.path, safe="/:@!$&'()*+,;=")))
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "/".join(photo_url.split("/")[:3]) + "/",
+    }
+    last_err = None
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(safe_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data = resp.read()
+            with open(local_path, "wb") as f:
+                f.write(data)
+            return f"/static/model_photos/{filename}"
+        except Exception as e:
+            last_err = e
+            if attempt < 2:
+                time.sleep(2 ** attempt)  # 1s, 2s
+    print(f"    [photo] could not download {photo_url}: {last_err}")
+    return photo_url
 
 
 def extract_embedding_from_url(photo_url: str):
