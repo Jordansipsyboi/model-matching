@@ -879,14 +879,19 @@ document.getElementById("findBtn").addEventListener("click", async () => {
     fd.append("hair_lengths", activeHair.join(","));
     fd.append("hair_colors", activeHairColors.join(","));
     fd.append("eye_colors", activeEyeColors.join(","));
-    fd.append("height_min", document.getElementById("heightMin").value);
-    fd.append("height_max", document.getElementById("heightMax").value);
-    fd.append("waist_min", document.getElementById("waistMin").value);
-    fd.append("waist_max", document.getElementById("waistMax").value);
-    fd.append("chest_min", document.getElementById("chestMin").value);
-    fd.append("chest_max", document.getElementById("chestMax").value);
-    fd.append("hips_min", document.getElementById("hipsMin").value);
-    fd.append("hips_max", document.getElementById("hipsMax").value);
+    // Only send range filters when the user has actually moved them from default.
+    // At default (min=slider.min, max=slider.max), models with 0/missing
+    // measurements would be wrongly excluded by the DB query.
+    const rangeFilters = [
+      ["height_min", "heightMin", 160], ["height_max", "heightMax", 200],
+      ["waist_min",  "waistMin",   55], ["waist_max",  "waistMax",   90],
+      ["chest_min",  "chestMin",   70], ["chest_max",  "chestMax",  100],
+      ["hips_min",   "hipsMin",    80], ["hips_max",   "hipsMax",   110],
+    ];
+    rangeFilters.forEach(([key, id, def]) => {
+      const val = parseInt(document.getElementById(id).value);
+      if (val !== def) fd.append(key, val);
+    });
     const ageMin = document.getElementById("ageMin").value;
     const ageMax = document.getElementById("ageMax").value;
     if (ageMin) fd.append("age_min", ageMin);

@@ -149,7 +149,10 @@ def search_models():
                         no_embedding.append(m)
 
                 scored.sort(key=lambda x: x["similarity"], reverse=True)
-                candidates = scored + no_embedding
+                # When a photo is uploaded, only return models that actually
+                # passed the face similarity threshold — don't append the
+                # no-embedding models, they have no basis for comparison.
+                candidates = scored
             else:
                 for m in candidates:
                     m.pop("_face_embedding", None)
