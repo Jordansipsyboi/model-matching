@@ -102,7 +102,7 @@ def search_models():
     # UI sends a display-percentage threshold (30/50/70 for Low/Medium/High).
     # Convert to transformed-space: threshold_t = REMAP_LO + (pct/100) * (REMAP_HI - REMAP_LO)
     # This guarantees that only results displaying at >= pct% are admitted.
-    _REMAP_LO, _REMAP_HI = 0.10, 0.50
+    _REMAP_LO, _REMAP_HI = 0.10, 0.35
     _threshold_pct = float(request.form.get("threshold", "50"))
     threshold = _REMAP_LO + (_threshold_pct / 100.0) * (_REMAP_HI - _REMAP_LO)
 
