@@ -147,16 +147,14 @@ def search_models():
                             continue
                         db_emb = np.frombuffer(emb_bytes, dtype=np.float32).copy()
                         raw_similarity = float(np.dot(query_emb, db_emb))
-                        # Alpha transform is used only for threshold filtering (boosts
-                        # recall for mid-low scores). Display % is computed from raw
-                        # similarity so the [0.10, 0.30] remap stays correctly calibrated.
-                        raw_clamped = max(0.0, raw_similarity)
-                        transformed = raw_clamped ** alpha
+                        transformed = max(0.0, raw_similarity) ** alpha
+                        # transformed is used for filtering, sorting, AND display.
+                        # Remap [0.10, 0.40] → [0%, 100%]: with alpha=0.75 the
+                        # transformed range for real matches runs ~0.10–0.40.
                         if transformed >= threshold:
                             display_pct = min(100.0, max(0.0,
-                                (raw_clamped - 0.10) / (0.30 - 0.10) * 100))
+                                (transformed - 0.10) / (0.40 - 0.10) * 100))
                             m["similarity"] = round(display_pct, 1)
-                            m["similarity_raw"] = round(raw_similarity * 100, 1)
                             scored.append(m)
                         else:
                             m["similarity"] = None
