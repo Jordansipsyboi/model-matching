@@ -99,8 +99,12 @@ def search_models():
 
     # Step 3: face similarity search if photo uploaded
     photo_file = request.files.get("photo")
-    # Raw cosine cutoff after alpha transform. Presets send 0.10/0.20/0.30. Default Medium.
-    threshold = float(request.form.get("threshold", "0.20"))
+    # UI sends a display-percentage threshold (30/50/70 for Low/Medium/High).
+    # Convert to transformed-space: threshold_t = REMAP_LO + (pct/100) * (REMAP_HI - REMAP_LO)
+    # This guarantees that only results displaying at >= pct% are admitted.
+    _REMAP_LO, _REMAP_HI = 0.10, 0.40
+    _threshold_pct = float(request.form.get("threshold", "50"))
+    threshold = _REMAP_LO + (_threshold_pct / 100.0) * (_REMAP_HI - _REMAP_LO)
 
     if photo_file:
         try:
@@ -149,17 +153,13 @@ def search_models():
                         raw_similarity = float(np.dot(query_emb, db_emb))
                         transformed = max(0.0, raw_similarity) ** alpha
                         # transformed is used for filtering, sorting, AND display.
-                        # Remap [0.10, 0.40] → [0%, 100%]: with alpha=0.75 the
-                        # transformed range for real matches runs ~0.10–0.40.
+                        # threshold was derived from display-pct, so any model that
+                        # passes is guaranteed to display at >= the selected preset %.
                         if transformed >= threshold:
                             display_pct = min(100.0, max(0.0,
-                                (transformed - 0.10) / (0.40 - 0.10) * 100))
-                            display_rounded = round(display_pct, 1)
-                            if display_rounded < 1.0:
-                                m["similarity"] = None
-                            else:
-                                m["similarity"] = display_rounded
-                                scored.append(m)
+                                (transformed - _REMAP_LO) / (_REMAP_HI - _REMAP_LO) * 100))
+                            m["similarity"] = round(display_pct, 1)
+                            scored.append(m)
                         else:
                             m["similarity"] = None
                     else:
