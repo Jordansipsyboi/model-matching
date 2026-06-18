@@ -285,10 +285,9 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
     <!-- SIMILARITY THRESHOLD -->
     <div class="filter-section" id="similaritySection" style="display:none;">
       <span class="filter-label">Face Match Strictness</span>
-      <div class="sim-presets">
-        <button class="sim-preset" data-val="30">Low</button>
-        <button class="sim-preset active" data-val="50">Medium</button>
-        <button class="sim-preset" data-val="70">High</button>
+      <div class="sim-presets" style="grid-template-columns: repeat(2, 1fr);">
+        <button class="sim-preset active" data-val="25">Low</button>
+        <button class="sim-preset" data-val="75">High</button>
       </div>
       <p class="sim-hint">Higher = must look very similar. Lower = broader lookalike results.</p>
     </div>
@@ -835,7 +834,7 @@ function autoSearch() {
 }
 
 // Similarity threshold presets
-let similarityThreshold = "50";
+let similarityThreshold = "25";
 document.querySelectorAll(".sim-preset").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".sim-preset").forEach(b => b.classList.remove("active"));
