@@ -102,7 +102,7 @@ def search_models():
     # UI sends a display-percentage threshold (30/50/70 for Low/Medium/High).
     # Convert to transformed-space: threshold_t = REMAP_LO + (pct/100) * (REMAP_HI - REMAP_LO)
     # This guarantees that only results displaying at >= pct% are admitted.
-    _REMAP_LO, _REMAP_HI = 0.10, 0.40
+    _REMAP_LO, _REMAP_HI = 0.10, 0.50
     _threshold_pct = float(request.form.get("threshold", "50"))
     threshold = _REMAP_LO + (_threshold_pct / 100.0) * (_REMAP_HI - _REMAP_LO)
 
@@ -151,7 +151,9 @@ def search_models():
                             continue
                         db_emb = np.frombuffer(emb_bytes, dtype=np.float32).copy()
                         raw_similarity = float(np.dot(query_emb, db_emb))
-                        transformed = max(0.0, raw_similarity) ** alpha
+                        # Exponentiation (alpha boost) commented out — use raw cosine directly.
+                        # transformed = max(0.0, raw_similarity) ** alpha
+                        transformed = max(0.0, raw_similarity)
                         # transformed is used for filtering, sorting, AND display.
                         # threshold was derived from display-pct, so any model that
                         # passes is guaranteed to display at >= the selected preset %.
