@@ -99,11 +99,7 @@ def search_models():
 
     # Step 3: face similarity search if photo uploaded
     photo_file = request.files.get("photo")
-    # Raw cosine cutoff. Real-world scores on agency photos (full-body, varied
-    # angle/lighting/makeup) run low — even the SAME person across two photos
-    # typically lands ~0.22-0.28 raw. Low/Medium/High presets in the UI send
-    # 0.10 / 0.20 / 0.30, displayed via the [0.10,0.30]->[0,100]% remap as
-    # 0% / 50% / 100%. Default to Medium.
+    # Raw cosine cutoff after alpha transform. Presets send 0.10/0.20/0.30. Default Medium.
     threshold = float(request.form.get("threshold", "0.20"))
 
     if photo_file:
@@ -111,8 +107,13 @@ def search_models():
             import numpy as np
             import tempfile
             import os as _os
+            from face1n import DEFAULT_SIMILARITY_ALPHA
 
             comparator = get_face_comparator()
+
+            # Load alpha from config (falls back to face1n default of 0.75)
+            _cfg = database.load_config()
+            alpha = float(_cfg.get("similarity_alpha", DEFAULT_SIMILARITY_ALPHA))
 
             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
                 photo_file.save(tmp.name)
@@ -129,35 +130,40 @@ def search_models():
                 if norm > 0:
                     query_emb = query_emb / norm
 
+                # Detect gender of the uploaded photo and filter to same gender.
+                # InsightFace genderage returns 'M' or 'F'; DB stores 'male'/'female'.
+                query_gender = None
+                if query_info and query_info.get("gender"):
+                    raw_g = query_info["gender"]  # 'M' or 'F'
+                    query_gender = "male" if raw_g == "M" else "female"
+
                 scored = []
-                no_embedding = []
                 for m in candidates:
                     emb_bytes = m.pop("_face_embedding", None)
                     if emb_bytes:
+                        # Gender filter: skip models whose gender doesn't match query
+                        if query_gender and m.get("gender") and m["gender"].lower() != query_gender:
+                            m["similarity"] = None
+                            continue
                         db_emb = np.frombuffer(emb_bytes, dtype=np.float32).copy()
-                        similarity = float(np.dot(query_emb, db_emb))
-                        if similarity >= threshold:
-                            # Remap raw cosine similarity to a user-friendly display
-                            # score. Raw scores for the same person in different
-                            # photos (makeup, angle, lighting) typically land
-                            # between 0.20-0.50 — showing "20%" to a client feels
-                            # wrong. Real same-person matches on these photos top
-                            # out around 0.30 raw, so we remap [0.10, 0.30] → [0%,
-                            # 100%]. A true same-person hit (~0.24-0.28) now reads
-                            # as a strong 70-90%, matching how it actually feels.
+                        raw_similarity = float(np.dot(query_emb, db_emb))
+                        # Non-linear transform: boost mid-low scores so real matches
+                        # read as stronger percentages. alpha=0.75 is conservative.
+                        raw_clamped = max(0.0, raw_similarity)
+                        transformed = raw_clamped ** alpha
+                        if transformed >= threshold:
+                            # Remap transformed score [0.10, 0.30] → [0%, 100%] for display
                             display_pct = min(100.0, max(0.0,
-                                (similarity - 0.10) / (0.30 - 0.10) * 100))
+                                (transformed - 0.10) / (0.30 - 0.10) * 100))
                             m["similarity"] = round(display_pct, 1)
-                            m["similarity_raw"] = round(similarity * 100, 1)
+                            m["similarity_raw"] = round(raw_similarity * 100, 1)
                             scored.append(m)
+                        else:
+                            m["similarity"] = None
                     else:
                         m["similarity"] = None
-                        no_embedding.append(m)
 
                 scored.sort(key=lambda x: x["similarity"], reverse=True)
-                # When a photo is uploaded, only return models that actually
-                # passed the face similarity threshold — don't append the
-                # no-embedding models, they have no basis for comparison.
                 candidates = scored
             else:
                 for m in candidates:

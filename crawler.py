@@ -704,8 +704,9 @@ def download_photo(photo_url: str, model_id: str) -> str:
 
 
 def extract_embedding_from_url(photo_url: str):
-    """Extract face embedding from a photo — either a local /static/... path or
-    an external URL. Returns bytes or None."""
+    """Extract face embedding (and gender/age if available) from a photo.
+    Returns (embedding_bytes, gender, age) or (None, None, None) on failure.
+    gender is 'M' or 'F' (from InsightFace genderage); age is int or None."""
     try:
         import urllib.request
         import tempfile
@@ -713,17 +714,17 @@ def extract_embedding_from_url(photo_url: str):
         from face1n import AuraFaceComparator
 
         if not photo_url:
-            return None
+            return None, None, None
 
         comparator = _get_face_comparator()
         if comparator is None:
-            return None
+            return None, None, None
 
         # Local file — resolve to filesystem path and read directly.
         if photo_url.startswith("/static/"):
             local_path = os.path.join(os.path.dirname(__file__), photo_url.lstrip("/"))
             if not os.path.exists(local_path):
-                return None
+                return None, None, None
             with open(local_path, "rb") as f:
                 img_data = f.read()
         else:
@@ -740,21 +741,24 @@ def extract_embedding_from_url(photo_url: str):
             tmp_path = tmp.name
 
         try:
-            embedding, _ = comparator.extract_face_embedding_optimized(tmp_path)
+            embedding, face_info = comparator.extract_face_embedding_optimized(tmp_path)
         finally:
             os.unlink(tmp_path)
 
         if embedding is None:
-            return None
+            return None, None, None
 
         embedding = embedding.astype("float32")
         norm = np.linalg.norm(embedding)
         if norm > 0:
             embedding = embedding / norm
-        return embedding.tobytes()
+
+        gender = face_info.get("gender") if face_info else None  # 'M' or 'F'
+        age = face_info.get("age") if face_info else None        # int or None
+        return embedding.tobytes(), gender, age
     except Exception as e:
         print(f"    Face embedding extraction failed: {e}")
-        return None
+        return None, None, None
 
 
 _face_comparator = None
@@ -782,13 +786,16 @@ def save_crawled_models(models: list, agency_name: str):
         # Download photo locally so it's always available (no external URL dependency)
         # then extract the face embedding from the local file.
         face_embedding = None
+        face_gender = None
+        face_age = None
         if m.get("photo_url"):
             local_url = download_photo(m["photo_url"], model_id)
             m["photo_url"] = local_url
             print(f"    Extracting face embedding for {m['english']}...")
-            face_embedding = extract_embedding_from_url(local_url)
+            face_embedding, face_gender, face_age = extract_embedding_from_url(local_url)
             if face_embedding:
-                print(f"    ✓ Face embedding saved ({len(face_embedding)} bytes)")
+                gender_str = f", gender={face_gender}, age={face_age}" if face_gender else ""
+                print(f"    ✓ Face embedding saved ({len(face_embedding)} bytes{gender_str})")
 
         try:
             with conn.cursor() as cur:
@@ -798,8 +805,8 @@ def save_crawled_models(models: list, agency_name: str):
                         (id, korean, english, birth, height, chest, waist, hips, shoes,
                          hair_length, hair_color, eye_color, gender, nationality,
                          work_types, looks, rate, photo_url, agency_name, profile_url,
-                         face_embedding)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                         face_embedding, face_gender, face_age)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE
                         korean=VALUES(korean), english=VALUES(english), birth=VALUES(birth),
                         height=VALUES(height), chest=VALUES(chest), waist=VALUES(waist),
@@ -809,7 +816,9 @@ def save_crawled_models(models: list, agency_name: str):
                         work_types=VALUES(work_types), looks=VALUES(looks), rate=VALUES(rate),
                         photo_url=VALUES(photo_url), agency_name=VALUES(agency_name),
                         profile_url=VALUES(profile_url),
-                        face_embedding=IF(VALUES(face_embedding) IS NOT NULL, VALUES(face_embedding), face_embedding)
+                        face_embedding=IF(VALUES(face_embedding) IS NOT NULL, VALUES(face_embedding), face_embedding),
+                        face_gender=IF(VALUES(face_gender) IS NOT NULL, VALUES(face_gender), face_gender),
+                        face_age=IF(VALUES(face_age) IS NOT NULL, VALUES(face_age), face_age)
                     """,
                     (
                         model_id,
@@ -833,6 +842,8 @@ def save_crawled_models(models: list, agency_name: str):
                         agency_name,
                         m.get("profile_url", ""),
                         face_embedding,
+                        face_gender,
+                        face_age,
                     )
                 )
             added += 1

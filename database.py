@@ -120,6 +120,8 @@ def init_db():
                 agency_name    VARCHAR(255),
                 profile_url    TEXT,
                 face_embedding LONGBLOB DEFAULT NULL,
+                face_gender    VARCHAR(1) DEFAULT NULL,
+                face_age       TINYINT UNSIGNED DEFAULT NULL,
                 active         TINYINT(1) DEFAULT 1
             ) CHARACTER SET utf8mb4
         """)
@@ -139,6 +141,8 @@ def init_db():
     conn.commit()
     conn.close()
     ensure_face_embedding_column()
+    ensure_active_column()
+    ensure_face_gender_age_columns()
     ensure_active_column()
 
 
@@ -552,6 +556,26 @@ def ensure_face_embedding_column():
             if cur.fetchone()["cnt"] == 0:
                 cur.execute("ALTER TABLE models ADD COLUMN face_embedding LONGBLOB DEFAULT NULL")
                 conn.commit()
+    finally:
+        conn.close()
+
+
+def ensure_face_gender_age_columns():
+    """Add face_gender and face_age columns if they don't exist (migration for existing DBs)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            for col, definition in [
+                ("face_gender", "VARCHAR(1) DEFAULT NULL"),
+                ("face_age",    "TINYINT UNSIGNED DEFAULT NULL"),
+            ]:
+                cur.execute("""
+                    SELECT COUNT(*) as cnt FROM information_schema.COLUMNS
+                    WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'models' AND COLUMN_NAME = %s
+                """, (DB_NAME, col))
+                if cur.fetchone()["cnt"] == 0:
+                    cur.execute(f"ALTER TABLE models ADD COLUMN {col} {definition}")
+            conn.commit()
     finally:
         conn.close()
 

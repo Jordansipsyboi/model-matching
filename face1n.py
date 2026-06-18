@@ -19,6 +19,10 @@ _DEFAULT_BUFFALO_MODEL_ROOT = os.path.dirname(os.path.abspath(__file__))
 # 人脸相似度默认阈值（1:1比对和1:N搜索统一使用）/ Default face similarity threshold (shared by 1:1 compare and 1:N search)
 DEFAULT_SIMILARITY_THRESHOLD = 0.65
 
+# Non-linear similarity transform exponent. Values < 1 boost mid-low scores (wider recall);
+# 1.0 = no transformation. Exposed here so app.py can override via config.
+DEFAULT_SIMILARITY_ALPHA = 0.75
+
 
 def _pad_to_ratio(img, target_ratio=3/4):
     """将图像填充至指定宽高比，返回 (padded_img, pad_top, pad_left) / Pad image to target aspect ratio, return (padded_img, pad_top, pad_left)."""
@@ -126,12 +130,13 @@ class AuraFaceComparator:
                 except Exception as e:
                     logger.warning(f"GPU检测失败，切换到CPU模式: {e}")
                     self.ctx_id = -1
-            # 仅加载检测和识别模块，减少不必要的内存占用 / Only load detection and recognition modules to reduce memory usage
+            # Load detection, recognition, and genderage modules.
+            # genderage provides .sex ('M'/'F') and .age (int) on each detected face.
             self.face_app = FaceAnalysis(
                 name='buffalo_l',
                 providers=providers,
                 root=absolute_model_root_path,
-                allowed_modules=['detection', 'recognition']
+                allowed_modules=['detection', 'recognition', 'genderage']
             )
             self.face_app.prepare(ctx_id=self.ctx_id, det_thresh=0.05, det_size=(640, 640))
             device_info = "GPU(CUDA)" if gpu_available else "CPU"
@@ -230,14 +235,23 @@ class AuraFaceComparator:
             if embedding.shape[0] != 512:
                 logger.error(f"Embedding维度错误: 期望512, 实际{embedding.shape[0]}")
                 return None, None
+            # Extract gender ('M'/'F') and age from genderage module if available
+            gender = None
+            age = None
+            if hasattr(best_face, 'sex'):
+                gender = best_face.sex  # 'M' or 'F'
+            if hasattr(best_face, 'age'):
+                age = int(best_face.age)
             face_info = {
                 'bbox': best_face.bbox.tolist() if hasattr(best_face, 'bbox') else None,
                 'confidence': confidence,
                 'quality_score': float(quality_score),
                 'processing_method': 'original',
-                'landmarks': best_face.kps.tolist() if hasattr(best_face, 'kps') else None
+                'landmarks': best_face.kps.tolist() if hasattr(best_face, 'kps') else None,
+                'gender': gender,
+                'age': age,
             }
-            logger.info(f"成功提取特征 - 维度: 512, 置信度: {confidence:.3f}, 质量: {quality_score:.3f}")
+            logger.info(f"成功提取特征 - 维度: 512, 置信度: {confidence:.3f}, 质量: {quality_score:.3f}, 性别: {gender}, 年龄: {age}")
             return embedding, face_info
         except Exception as e:
             logger.error(f"特征提取失败: {e}")
@@ -272,12 +286,20 @@ class AuraFaceComparator:
             if embedding.shape[0] != 512:
                 logger.error(f"Embedding维度错误: 期望512, 实际{embedding.shape[0]}")
                 return None, None
+            gender = None
+            age = None
+            if hasattr(best_face, 'sex'):
+                gender = best_face.sex
+            if hasattr(best_face, 'age'):
+                age = int(best_face.age)
             face_info = {
                 'bbox': best_face.bbox.tolist() if hasattr(best_face, 'bbox') else None,
                 'confidence': confidence,
                 'quality_score': float(quality_score),
                 'processing_method': 'original',
-                'landmarks': best_face.kps.tolist() if hasattr(best_face, 'kps') else None
+                'landmarks': best_face.kps.tolist() if hasattr(best_face, 'kps') else None,
+                'gender': gender,
+                'age': age,
             }
             return embedding, face_info
         except Exception as e:
@@ -545,7 +567,9 @@ class Face1NComparator:
         return result
 
     def search_face(self, image_path: str, top_k: int = 5, threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
-                    face_index: int = 0, embedding: np.ndarray = None) -> Dict:
+                    face_index: int = 0, embedding: np.ndarray = None,
+                    alpha: float = DEFAULT_SIMILARITY_ALPHA,
+                    gender_filter: Optional[str] = None) -> Dict:
         """人脸1:N搜索：提取查询特征后与内存缓存全量计算余弦相似度，返回 top_k 结果 / 1:N face search: extract query embedding, compute cosine similarity against memory cache, return top_k results.
         Returns: dict with keys success, matches(list), total_faces, face_info, pad_top, pad_left, message."""
         result = {
@@ -590,12 +614,18 @@ class Face1NComparator:
                 norm = np.linalg.norm(query_vector)
                 if norm > 0:
                     query_vector = query_vector / norm
-                # 全量余弦相似度计算：向量点积即归一化后的余弦相似度 / Full-scan dot product equals cosine similarity after normalization
+                # Full-scan cosine similarity with non-linear alpha transform.
+                # raw_similarity = dot product of normalized vectors (cosine similarity in [0,1])
+                # transformed_similarity = raw_similarity ** alpha
+                # alpha < 1 boosts mid-low scores (wider recall); alpha = 1 = no change.
                 scored = []
                 for pid, emb in self._embedding_cache.items():
-                    similarity = float(np.dot(query_vector, emb))
-                    if similarity >= threshold:
-                        scored.append((pid, similarity))
+                    raw_similarity = float(np.dot(query_vector, emb))
+                    # Clamp to [0,1] before power transform (negative raw scores = no match)
+                    raw_clamped = max(0.0, raw_similarity)
+                    transformed_similarity = raw_clamped ** alpha
+                    if transformed_similarity >= threshold:
+                        scored.append((pid, transformed_similarity, raw_similarity))
                 scored.sort(key=lambda x: x[1], reverse=True)
                 scored = scored[:top_k]
                 matches = []
@@ -608,7 +638,7 @@ class Face1NComparator:
                         FROM `user` WHERE person_id IN ({fmt})
                     ''', person_ids)
                     db_rows = {row['person_id']: row for row in cursor.fetchall()}
-                    for rank, (pid, similarity) in enumerate(scored, start=1):
+                    for rank, (pid, transformed_similarity, raw_similarity) in enumerate(scored, start=1):
                         row = db_rows.get(pid)
                         if row:
                             matches.append({
@@ -618,7 +648,8 @@ class Face1NComparator:
                                 'height': row['height'],
                                 'weight': row['weight'],
                                 'nationality': row['nationality'],
-                                'similarity': similarity,
+                                'similarity': transformed_similarity,
+                                'raw_similarity': raw_similarity,
                                 'register_time': str(row['register_time']),
                             })
                 result['success'] = True
