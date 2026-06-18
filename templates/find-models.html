@@ -468,6 +468,41 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
 </div>
 
 <!-- MODAL -->
+
+<!-- Booking Request Modal -->
+<div class="book-modal-bg" id="bookModalBg">
+  <div class="book-modal" id="bookModal">
+    <div id="bookForm">
+      <h3>Request Booking</h3>
+      <p class="book-modal-sub" id="bookModelName"></p>
+      <div class="book-field">
+        <label>Your Name *</label>
+        <input type="text" id="bookClientName" placeholder="Full name" required>
+      </div>
+      <div class="book-field">
+        <label>Email *</label>
+        <input type="email" id="bookClientEmail" placeholder="your@email.com" required>
+      </div>
+      <div class="book-field">
+        <label>Phone</label>
+        <input type="tel" id="bookClientPhone" placeholder="+82 10 0000 0000">
+      </div>
+      <div class="book-field">
+        <label>Project / Notes</label>
+        <textarea id="bookClientNotes" placeholder="Shoot dates, type of project, budget range, etc."></textarea>
+      </div>
+      <button class="book-submit" id="bookSubmitBtn" type="button">Send Booking Request</button>
+      <button class="book-cancel" id="bookCancelBtn" type="button">Cancel</button>
+    </div>
+    <div id="bookSuccess" class="book-success" style="display:none">
+      <p style="font-size:1.1rem">✓</p>
+      <p>Your request has been sent.</p>
+      <p>We'll be in touch shortly.</p>
+      <button class="book-cancel" id="bookSuccessClose" type="button" style="margin-top:1.5rem">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalBg">
   <div class="modal" style="position:relative">
     <button class="modal-close" id="modalClose">✕</button>
@@ -1058,40 +1093,6 @@ document.getElementById("bookSubmitBtn").addEventListener("click", async () => {
 });
 
 </script>
-
-<!-- Booking Request Modal -->
-<div class="book-modal-bg" id="bookModalBg">
-  <div class="book-modal" id="bookModal">
-    <div id="bookForm">
-      <h3>Request Booking</h3>
-      <p class="book-modal-sub" id="bookModelName"></p>
-      <div class="book-field">
-        <label>Your Name *</label>
-        <input type="text" id="bookClientName" placeholder="Full name" required>
-      </div>
-      <div class="book-field">
-        <label>Email *</label>
-        <input type="email" id="bookClientEmail" placeholder="your@email.com" required>
-      </div>
-      <div class="book-field">
-        <label>Phone</label>
-        <input type="tel" id="bookClientPhone" placeholder="+82 10 0000 0000">
-      </div>
-      <div class="book-field">
-        <label>Project / Notes</label>
-        <textarea id="bookClientNotes" placeholder="Shoot dates, type of project, budget range, etc."></textarea>
-      </div>
-      <button class="book-submit" id="bookSubmitBtn" type="button">Send Booking Request</button>
-      <button class="book-cancel" id="bookCancelBtn" type="button">Cancel</button>
-    </div>
-    <div id="bookSuccess" class="book-success" style="display:none">
-      <p style="font-size:1.1rem">✓</p>
-      <p>Your request has been sent.</p>
-      <p>We'll be in touch shortly.</p>
-      <button class="book-cancel" id="bookSuccessClose" type="button" style="margin-top:1.5rem">Close</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
