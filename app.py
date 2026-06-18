@@ -630,8 +630,10 @@ def book_model():
     gmail_pass = cfg.get("gmail_app_password", "")
     notify_email = cfg.get("notify_email", gmail_user)
 
+    model_id = data.get("model_id", "")
+    database.save_booking(model_id, model_name, agency_name, client_name, client_email, client_phone, notes)
+
     if not gmail_user or not gmail_pass:
-        # Email not configured — log and return ok so UI still confirms
         print(f"[BOOKING] {client_name} <{client_email}> wants to book {model_name} ({agency_name}). Notes: {notes}")
         return jsonify({"status": "ok"})
 
@@ -664,6 +666,14 @@ Notes:
         return jsonify({"error": "Email failed"}), 500
 
     return jsonify({"status": "ok"})
+
+
+@app.route("/admin/bookings")
+def admin_bookings():
+    if not session.get("admin"):
+        return redirect(url_for("admin_login"))
+    bookings = database.get_bookings()
+    return render_template("admin_bookings.html", bookings=bookings)
 
 
 if __name__ == "__main__":

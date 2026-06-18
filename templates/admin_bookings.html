@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookings — Model Matching</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #fff; color: #000; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 13px; }
+header { padding: 20px 40px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; font-weight: 400; }
+.header-right { display: flex; align-items: center; gap: 2rem; }
+.header-right a { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: #888; text-decoration: none; }
+.header-right a:hover { color: #000; }
+.logout { color: #000 !important; border-bottom: 1px solid #000; padding-bottom: 1px; }
+.content { padding: 32px 40px; }
+.page-title { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 24px; }
+.empty { color: #888; font-size: 0.8rem; letter-spacing: 0.05em; padding: 40px 0; }
+table { width: 100%; border-collapse: collapse; }
+thead th { text-align: left; padding: 10px 16px; font-size: 0.6rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: #888; border-bottom: 1px solid #e0e0e0; }
+tbody td { padding: 12px 16px; border-bottom: 1px solid #f5f5f5; font-size: 0.8rem; vertical-align: top; }
+tbody tr:hover td { background: #fafafa; }
+.model-cell { font-weight: 500; }
+.agency-chip { display: inline-block; font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid #e0e0e0; padding: 2px 6px; color: #666; margin-top: 3px; }
+.notes-cell { color: #555; max-width: 260px; }
+.date-cell { color: #888; white-space: nowrap; font-size: 0.75rem; }
+.reply-link { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: #000; text-decoration: none; border-bottom: 1px solid #ccc; }
+.reply-link:hover { border-bottom-color: #000; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Model Matching — Bookings</h1>
+  <div class="header-right">
+    <a href="/admin">← Admin</a>
+    <a class="logout" href="/admin/logout">Logout</a>
+  </div>
+</header>
+
+<div class="content">
+  <p class="page-title">Booking Requests — {{ bookings|length }} total</p>
+
+  {% if not bookings %}
+    <p class="empty">No booking requests yet.</p>
+  {% else %}
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Model</th>
+        <th>Client</th>
+        <th>Contact</th>
+        <th>Notes</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in bookings %}
+      <tr>
+        <td class="date-cell">{{ b.created_at.strftime('%Y-%m-%d') if b.created_at else '—' }}<br>
+          <span style="color:#bbb;font-size:0.7rem">{{ b.created_at.strftime('%H:%M') if b.created_at else '' }}</span>
+        </td>
+        <td class="model-cell">
+          {{ b.model_name or '—' }}<br>
+          {% if b.agency_name %}<span class="agency-chip">{{ b.agency_name }}</span>{% endif %}
+        </td>
+        <td>{{ b.client_name or '—' }}</td>
+        <td>
+          {{ b.client_email or '—' }}<br>
+          {% if b.client_phone %}<span style="color:#888">{{ b.client_phone }}</span>{% endif %}
+        </td>
+        <td class="notes-cell">{{ b.notes or '—' }}</td>
+        <td>
+          {% if b.client_email %}
+          <a class="reply-link" href="mailto:{{ b.client_email }}?subject=Re: Booking — {{ b.model_name }}">Reply</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+</body>
+</html>

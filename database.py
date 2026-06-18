@@ -123,6 +123,19 @@ def init_db():
                 active         TINYINT(1) DEFAULT 1
             ) CHARACTER SET utf8mb4
         """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS bookings (
+                id           INT AUTO_INCREMENT PRIMARY KEY,
+                model_id     VARCHAR(255),
+                model_name   VARCHAR(255),
+                agency_name  VARCHAR(255),
+                client_name  VARCHAR(255),
+                client_email VARCHAR(255),
+                client_phone VARCHAR(100),
+                notes        TEXT,
+                created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) CHARACTER SET utf8mb4
+        """)
     conn.commit()
     conn.close()
     ensure_face_embedding_column()
@@ -541,6 +554,28 @@ def ensure_face_embedding_column():
                 conn.commit()
     finally:
         conn.close()
+
+
+def save_booking(model_id, model_name, agency_name, client_name, client_email, client_phone, notes):
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO bookings
+               (model_id, model_name, agency_name, client_name, client_email, client_phone, notes)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (model_id, model_name, agency_name, client_name, client_email, client_phone, notes)
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_bookings():
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM bookings ORDER BY created_at DESC")
+        rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 if __name__ == "__main__":
