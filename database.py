@@ -8,6 +8,10 @@ _cfg_path = os.path.join(os.path.dirname(__file__), "config.json")
 with open(_cfg_path) as _f:
     _cfg = json.load(_f)
 
+def load_config():
+    with open(_cfg_path) as f:
+        return json.load(f)
+
 DB_HOST = _cfg["db_host"]
 DB_PORT = int(_cfg["db_port"])
 DB_USER = _cfg["db_user"]

@@ -225,6 +225,21 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
 .modal-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
 .modal-tag { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid var(--gray-200); padding: 0.3rem 0.6rem; }
 .modal-contact { width: 100%; background: var(--black); color: var(--white); border: none; padding: 0.9rem; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; margin-top: 1.5rem; }
+.book-modal-bg { position: fixed; inset: 0; background: rgba(10,10,10,0.7); z-index: 300; display: none; align-items: center; justify-content: center; padding: 2rem; backdrop-filter: blur(4px); }
+.book-modal-bg.open { display: flex; }
+.book-modal { background: var(--white); width: 100%; max-width: 480px; padding: 2.5rem; position: relative; }
+.book-modal h3 { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 1rem; font-weight: 400; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.4rem; }
+.book-modal-sub { font-size: 0.72rem; color: var(--gray-400); letter-spacing: 0.05em; margin-bottom: 2rem; }
+.book-field { margin-bottom: 1.2rem; }
+.book-field label { display: block; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-400); margin-bottom: 0.4rem; }
+.book-field input, .book-field textarea { width: 100%; border: 1px solid var(--gray-200); padding: 0.65rem 0.8rem; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 0.85rem; outline: none; box-sizing: border-box; }
+.book-field input:focus, .book-field textarea:focus { border-color: var(--black); }
+.book-field textarea { resize: vertical; min-height: 80px; }
+.book-submit { width: 100%; background: var(--black); color: var(--white); border: none; padding: 0.9rem; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; margin-top: 0.5rem; }
+.book-submit:disabled { opacity: 0.5; cursor: default; }
+.book-cancel { width: 100%; background: transparent; color: var(--gray-400); border: 1px solid var(--gray-200); padding: 0.7rem; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; margin-top: 0.6rem; }
+.book-success { text-align: center; padding: 1rem 0; }
+.book-success p { font-size: 0.85rem; color: var(--gray-400); margin-top: 0.5rem; }
 
 @media (max-width: 900px) {
   .page { grid-template-columns: 1fr; }
@@ -472,7 +487,7 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
         <p class="modal-section-label">Look</p>
         <div class="modal-tags" id="modalLooks"></div>
       </div>
-      <a class="modal-contact" target="_blank">Request Booking</a>
+      <button class="modal-contact" id="openBookingBtn" type="button">Request Booking</button>
     </div>
   </div>
 </div>
@@ -836,12 +851,8 @@ function openModal(id) {
   document.getElementById("modalTags").innerHTML = m.workTypes.map(t => `<span class="modal-tag">${t}</span>`).join("");
   document.getElementById("modalLooks").innerHTML = m.looks.map(l => `<span class="modal-tag">${l}</span>`).join("");
 
-  // Request Booking button — always emails Model Matching (you)
-  const btn = document.querySelector(".modal-contact");
-  const subject = encodeURIComponent(`Booking Inquiry — ${m.english}`);
-  const body = encodeURIComponent(`Hi,\n\nI would like to book ${m.english} (${m.agency_name || 'Independent'}).\n\nPlease get back to me with availability and rates.\n\nThank you.`);
-  btn.href = `https://mail.google.com/mail/?view=cm&to=eden137925@gmail.com&su=${subject}&body=${body}`;
-  btn.style.display = "block";
+  // Request Booking button — opens booking form modal
+  document.getElementById("openBookingBtn").dataset.modelId = id;
 
   document.getElementById("modalBg").classList.add("open");
   document.body.style.overflow = "hidden";
@@ -978,6 +989,109 @@ document.getElementById("ageMax").addEventListener("input", () => {
 
 // Don't render on load — wait for Find Matches click
 
+
+// ── Booking Modal ────────────────────────────────────────────────
+let _bookingModelId = null;
+
+document.getElementById("openBookingBtn").addEventListener("click", () => {
+  const id = document.getElementById("openBookingBtn").dataset.modelId;
+  const m = MODELS.find(x => x.id === id);
+  if (!m) return;
+  _bookingModelId = id;
+  document.getElementById("bookModelName").textContent =
+    `${m.english}${m.agency_name ? " · " + m.agency_name : ""}`;
+  document.getElementById("bookForm").style.display = "";
+  document.getElementById("bookSuccess").style.display = "none";
+  document.getElementById("bookClientName").value = "";
+  document.getElementById("bookClientEmail").value = "";
+  document.getElementById("bookClientPhone").value = "";
+  document.getElementById("bookClientNotes").value = "";
+  document.getElementById("bookModalBg").classList.add("open");
+});
+
+function closeBookModal() {
+  document.getElementById("bookModalBg").classList.remove("open");
+}
+
+document.getElementById("bookCancelBtn").addEventListener("click", closeBookModal);
+document.getElementById("bookSuccessClose").addEventListener("click", closeBookModal);
+document.getElementById("bookModalBg").addEventListener("click", e => {
+  if (e.target === document.getElementById("bookModalBg")) closeBookModal();
+});
+
+document.getElementById("bookSubmitBtn").addEventListener("click", async () => {
+  const name = document.getElementById("bookClientName").value.trim();
+  const email = document.getElementById("bookClientEmail").value.trim();
+  if (!name || !email) { alert("Please enter your name and email."); return; }
+
+  const m = MODELS.find(x => x.id === _bookingModelId);
+  const btn = document.getElementById("bookSubmitBtn");
+  btn.disabled = true;
+  btn.textContent = "Sending…";
+
+  try {
+    const res = await fetch("/book", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model_id: _bookingModelId,
+        model_name: m?.english || "",
+        agency_name: m?.agency_name || "",
+        client_name: name,
+        client_email: email,
+        client_phone: document.getElementById("bookClientPhone").value.trim(),
+        notes: document.getElementById("bookClientNotes").value.trim(),
+      })
+    });
+    if (res.ok) {
+      document.getElementById("bookForm").style.display = "none";
+      document.getElementById("bookSuccess").style.display = "";
+    } else {
+      alert("Something went wrong. Please try again.");
+    }
+  } catch {
+    alert("Network error. Please try again.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Send Booking Request";
+  }
+});
+
 </script>
+
+<!-- Booking Request Modal -->
+<div class="book-modal-bg" id="bookModalBg">
+  <div class="book-modal" id="bookModal">
+    <div id="bookForm">
+      <h3>Request Booking</h3>
+      <p class="book-modal-sub" id="bookModelName"></p>
+      <div class="book-field">
+        <label>Your Name *</label>
+        <input type="text" id="bookClientName" placeholder="Full name" required>
+      </div>
+      <div class="book-field">
+        <label>Email *</label>
+        <input type="email" id="bookClientEmail" placeholder="your@email.com" required>
+      </div>
+      <div class="book-field">
+        <label>Phone</label>
+        <input type="tel" id="bookClientPhone" placeholder="+82 10 0000 0000">
+      </div>
+      <div class="book-field">
+        <label>Project / Notes</label>
+        <textarea id="bookClientNotes" placeholder="Shoot dates, type of project, budget range, etc."></textarea>
+      </div>
+      <button class="book-submit" id="bookSubmitBtn" type="button">Send Booking Request</button>
+      <button class="book-cancel" id="bookCancelBtn" type="button">Cancel</button>
+    </div>
+    <div id="bookSuccess" class="book-success" style="display:none">
+      <p style="font-size:1.1rem">✓</p>
+      <p>Your request has been sent.</p>
+      <p>We'll be in touch shortly.</p>
+      <button class="book-cancel" id="bookSuccessClose" type="button" style="margin-top:1.5rem">Close</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

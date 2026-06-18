@@ -1,5 +1,8 @@
 import os
 import threading
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 
 import database
@@ -606,6 +609,60 @@ def admin_model_update():
     updated = database.update_model(model_id, fields)
     if not updated:
         return jsonify({"error": "Model not found or nothing changed"}), 404
+    return jsonify({"status": "ok"})
+
+
+@app.route("/book", methods=["POST"])
+def book_model():
+    data = request.get_json(force=True)
+    model_name  = data.get("model_name", "")
+    agency_name = data.get("agency_name", "")
+    client_name  = data.get("client_name", "").strip()
+    client_email = data.get("client_email", "").strip()
+    client_phone = data.get("client_phone", "").strip()
+    notes        = data.get("notes", "").strip()
+
+    if not client_name or not client_email:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    cfg = database.load_config()
+    gmail_user = cfg.get("gmail_user", "")
+    gmail_pass = cfg.get("gmail_app_password", "")
+    notify_email = cfg.get("notify_email", gmail_user)
+
+    if not gmail_user or not gmail_pass:
+        # Email not configured — log and return ok so UI still confirms
+        print(f"[BOOKING] {client_name} <{client_email}> wants to book {model_name} ({agency_name}). Notes: {notes}")
+        return jsonify({"status": "ok"})
+
+    subject = f"Booking Request — {model_name}"
+    body = f"""New booking request from Model Matching
+
+Model:   {model_name}
+Agency:  {agency_name}
+
+Client:  {client_name}
+Email:   {client_email}
+Phone:   {client_phone or '—'}
+
+Notes:
+{notes or '—'}
+"""
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = gmail_user
+        msg["To"] = notify_email
+        msg["Subject"] = subject
+        msg["Reply-To"] = client_email
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(gmail_user, gmail_pass)
+            server.sendmail(gmail_user, notify_email, msg.as_string())
+    except Exception as e:
+        print(f"[BOOKING] Email send failed: {e}")
+        return jsonify({"error": "Email failed"}), 500
+
     return jsonify({"status": "ok"})
 
 
