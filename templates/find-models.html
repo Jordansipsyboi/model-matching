@@ -800,6 +800,7 @@ function setupChips(containerId, activeArr) {
       if (idx === -1) activeArr.push(val);
       else activeArr.splice(idx, 1);
       if (activeArr.length) clearErrorState(document.getElementById(containerId));
+      autoSearch();
     });
   });
 }
@@ -818,8 +819,19 @@ function setupRange(minId, maxId, minValId, maxValId) {
       }
       minVal.textContent = minEl.value;
       maxVal.textContent = maxEl.value;
+      autoSearch();
     });
   });
+}
+
+// Auto-search: re-run Find Matches when filters change, but only if results
+// are already showing. Debounced so sliders don't fire on every pixel.
+let _autoSearchTimer = null;
+let _hasResults = false;
+function autoSearch() {
+  if (!_hasResults) return;
+  clearTimeout(_autoSearchTimer);
+  _autoSearchTimer = setTimeout(() => document.getElementById("findBtn").click(), 400);
 }
 
 // Similarity threshold presets
@@ -829,6 +841,7 @@ document.querySelectorAll(".sim-preset").forEach(btn => {
     document.querySelectorAll(".sim-preset").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     similarityThreshold = btn.dataset.val;
+    autoSearch();
   });
 });
 
@@ -958,6 +971,7 @@ document.getElementById("findBtn").addEventListener("click", async () => {
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
 
+    _hasResults = true;
     renderCards(filteredModels);
     requestAnimationFrame(() => requestAnimationFrame(() => section.classList.add("visible")));
   } catch (err) {
@@ -1001,6 +1015,7 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 document.getElementById("sortSelect").addEventListener("change", sortModels);
 document.getElementById("keywordInput").addEventListener("input", () => {
   if (document.getElementById("keywordInput").value.trim()) clearErrorState(document.getElementById("keywordInput"));
+  autoSearch();
 });
 
 // Init
@@ -1017,9 +1032,11 @@ setupRange("chestMin", "chestMax", "chestMinVal", "chestMaxVal");
 setupRange("hipsMin", "hipsMax", "hipsMinVal", "hipsMaxVal");
 document.getElementById("ageMin").addEventListener("input", () => {
   if (document.getElementById("ageMin").value.trim()) clearErrorState(document.getElementById("ageMin"));
+  autoSearch();
 });
 document.getElementById("ageMax").addEventListener("input", () => {
   if (document.getElementById("ageMax").value.trim()) clearErrorState(document.getElementById("ageMax"));
+  autoSearch();
 });
 
 // Don't render on load — wait for Find Matches click
