@@ -154,8 +154,12 @@ def search_models():
                         if transformed >= threshold:
                             display_pct = min(100.0, max(0.0,
                                 (transformed - 0.10) / (0.40 - 0.10) * 100))
-                            m["similarity"] = round(display_pct, 1)
-                            scored.append(m)
+                            display_rounded = round(display_pct, 1)
+                            if display_rounded < 1.0:
+                                m["similarity"] = None
+                            else:
+                                m["similarity"] = display_rounded
+                                scored.append(m)
                         else:
                             m["similarity"] = None
                     else:
