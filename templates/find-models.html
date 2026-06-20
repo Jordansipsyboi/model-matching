@@ -315,27 +315,9 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
     </div>
 
     <!-- WAIST -->
-    <div class="filter-section">
-      <span class="filter-label required">Waist (cm)</span>
-      <div class="range-wrap">
-        <div class="range-row">
-          <span class="range-val" id="waistMinVal">55</span>
-          <span class="range-val" id="waistMaxVal">90</span>
-        </div>
-        <input type="range" id="waistMin" min="55" max="90" value="55" step="1">
-        <input type="range" id="waistMax" min="55" max="90" value="90" step="1">
-      </div>
-    </div>
 
-    <!-- AGE -->
-    <div class="filter-section">
-      <span class="filter-label">Age Range</span>
-      <div style="display:flex; gap:0.5rem; align-items:center;">
-        <input type="number" class="keyword-input" id="ageMin" placeholder="Min age" style="width:50%;" min="16" max="60" required>
-        <span style="color:var(--gray-400); font-size:0.8rem;">–</span>
-        <input type="number" class="keyword-input" id="ageMax" placeholder="Max age" style="width:50%;" min="16" max="60" required>
-      </div>
-    </div>
+
+
 
 
 
@@ -363,44 +345,12 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
       </div>
     </div>
 
-    <!-- HAIR LENGTH -->
-    <div class="filter-section">
-      <span class="filter-label">Hair Length</span>
-      <div class="chips" id="hairChips">
-        <div class="chip" data-value="short">Short</div>
-        <div class="chip" data-value="medium">Medium</div>
-        <div class="chip" data-value="long">Long</div>
-        <div class="chip" data-value="buzzcut">Buzz Cut</div>
-        <div class="chip" data-value="bald">Bald</div>
-      </div>
-    </div>
 
 
-    <!-- CHEST -->
-    <div class="filter-section">
-      <span class="filter-label">Chest / Bust (cm)</span>
-      <div class="range-wrap">
-        <div class="range-row">
-          <span class="range-val" id="chestMinVal">70</span>
-          <span class="range-val" id="chestMaxVal">100</span>
-        </div>
-        <input type="range" id="chestMin" min="70" max="100" value="70" step="1">
-        <input type="range" id="chestMax" min="70" max="100" value="100" step="1">
-      </div>
-    </div>
 
-    <!-- HIPS -->
-    <div class="filter-section">
-      <span class="filter-label">Hips (cm)</span>
-      <div class="range-wrap">
-        <div class="range-row">
-          <span class="range-val" id="hipsMinVal">80</span>
-          <span class="range-val" id="hipsMaxVal">110</span>
-        </div>
-        <input type="range" id="hipsMin" min="80" max="110" value="80" step="1">
-        <input type="range" id="hipsMax" min="80" max="110" value="110" step="1">
-      </div>
-    </div>
+
+
+
 
     <!-- HAIR COLOR -->
     <div class="filter-section">
@@ -610,12 +560,8 @@ function clearValidationStates() {
   [
     document.getElementById("uploadZone"),
     document.getElementById("keywordInput"),
-    document.getElementById("ageMin"),
-    document.getElementById("ageMax"),
-
     document.getElementById("genderChips"),
-    document.getElementById("nationalityChips"),
-    document.getElementById("hairChips")
+    document.getElementById("nationalityChips")
   ].forEach(clearErrorState);
 }
 
@@ -721,16 +667,7 @@ function applyFilters() {
   const keyword = document.getElementById("keywordInput").value.toLowerCase();
   const heightMin = parseInt(document.getElementById("heightMin").value);
   const heightMax = parseInt(document.getElementById("heightMax").value);
-  const waistMin = parseInt(document.getElementById("waistMin").value);
-  const waistMax = parseInt(document.getElementById("waistMax").value);
-  const chestMin = parseInt(document.getElementById("chestMin").value);
-  const chestMax = parseInt(document.getElementById("chestMax").value);
-  const hipsMin = parseInt(document.getElementById("hipsMin").value);
-  const hipsMax = parseInt(document.getElementById("hipsMax").value);
-  const ageMinRaw = document.getElementById("ageMin").value;
-  const ageMaxRaw = document.getElementById("ageMax").value;
-  const ageMin = ageMinRaw ? parseInt(ageMinRaw) : null;
-  const ageMax = ageMaxRaw ? parseInt(ageMaxRaw) : null;
+
 
 
   filteredModels = MODELS.filter(m => {
@@ -742,23 +679,17 @@ function applyFilters() {
     // Height
     if (m.height < heightMin || m.height > heightMax) return false;
     // Waist
-    if (m.waist < waistMin || m.waist > waistMax) return false;
     // Chest
-    if (m.chest < chestMin || m.chest > chestMax) return false;
     // Hips
-    if (m.hips < hipsMin || m.hips > hipsMax) return false;
     // Hair color
     if (activeHairColors.length > 0 && !activeHairColors.includes(m.hair_color)) return false;
     // Eye color
     if (activeEyeColors.length > 0 && !activeEyeColors.includes(m.eye_color)) return false;
     // Age
     const age = new Date().getFullYear() - m.birth;
-    if (ageMin !== null && age < ageMin) return false;
-    if (ageMax !== null && age > ageMax) return false;
     // Gender
     if (activeGender.length > 0 && !activeGender.includes(m.gender)) return false;
     // Hair
-    if (activeHair.length > 0 && !activeHair.includes(m.hair)) return false;
     // Nationality
     if (activeNationalities.length > 0 && !activeNationalities.includes(m.nationality)) return false;
     // Work type
@@ -928,7 +859,6 @@ document.getElementById("findBtn").addEventListener("click", async () => {
     fd.append("work_types", activeWorkTypes.join(","));
     fd.append("looks", activeLooks.join(","));
     fd.append("nationalities", activeNationalities.join(","));
-    fd.append("hair_lengths", activeHair.join(","));
     fd.append("hair_colors", activeHairColors.join(","));
     fd.append("eye_colors", activeEyeColors.join(","));
     // Only send range filters when the user has actually moved them from default.
@@ -936,18 +866,11 @@ document.getElementById("findBtn").addEventListener("click", async () => {
     // measurements would be wrongly excluded by the DB query.
     const rangeFilters = [
       ["height_min", "heightMin", 160], ["height_max", "heightMax", 200],
-      ["waist_min",  "waistMin",   55], ["waist_max",  "waistMax",   90],
-      ["chest_min",  "chestMin",   70], ["chest_max",  "chestMax",  100],
-      ["hips_min",   "hipsMin",    80], ["hips_max",   "hipsMax",   110],
     ];
     rangeFilters.forEach(([key, id, def]) => {
       const val = parseInt(document.getElementById(id).value);
       if (val !== def) fd.append(key, val);
     });
-    const ageMin = document.getElementById("ageMin").value;
-    const ageMax = document.getElementById("ageMax").value;
-    if (ageMin) fd.append("age_min", ageMin);
-    if (ageMax) fd.append("age_max", ageMax);
 
     const res = await fetch("/api/search-models", { method: "POST", body: fd });
     const data = await res.json();
@@ -982,23 +905,9 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   document.getElementById("heightMax").value = 200;
   document.getElementById("heightMinVal").textContent = 160;
   document.getElementById("heightMaxVal").textContent = 200;
-  document.getElementById("waistMin").value = 55;
-  document.getElementById("waistMax").value = 90;
-  document.getElementById("waistMinVal").textContent = 55;
-  document.getElementById("waistMaxVal").textContent = 90;
-  document.getElementById("chestMin").value = 70;
-  document.getElementById("chestMax").value = 100;
-  document.getElementById("chestMinVal").textContent = 70;
-  document.getElementById("chestMaxVal").textContent = 100;
-  document.getElementById("hipsMin").value = 80;
-  document.getElementById("hipsMax").value = 110;
-  document.getElementById("hipsMinVal").textContent = 80;
-  document.getElementById("hipsMaxVal").textContent = 110;
-  document.getElementById("ageMin").value = "";
-  document.getElementById("ageMax").value = "";
 
   document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
-  activeWorkTypes.length = 0; activeLooks.length = 0; activeNationalities.length = 0; activeHair.length = 0; activeGender.length = 0; activeHairColors.length = 0; activeEyeColors.length = 0;
+  activeWorkTypes.length = 0; activeLooks.length = 0; activeNationalities.length = 0; activeGender.length = 0; activeHairColors.length = 0; activeEyeColors.length = 0;
   filteredModels = [...MODELS];
   document.getElementById("modelGrid").innerHTML = "";
   document.getElementById("resultCount").textContent = "0";
@@ -1016,7 +925,6 @@ document.getElementById("keywordInput").addEventListener("input", () => {
 setupChips("workTypeChips", activeWorkTypes);
 setupChips("lookChips", activeLooks);
 setupChips("nationalityChips", activeNationalities);
-setupChips("hairChips", activeHair);
 // Gender: single-select (clicking the active one deselects it)
 document.querySelectorAll("#genderChips .chip").forEach(chip => {
   chip.addEventListener("click", () => {
@@ -1034,9 +942,6 @@ document.querySelectorAll("#genderChips .chip").forEach(chip => {
 setupChips("hairColorChips", activeHairColors);
 setupChips("eyeColorChips", activeEyeColors);
 setupRange("heightMin", "heightMax", "heightMinVal", "heightMaxVal");
-setupRange("waistMin", "waistMax", "waistMinVal", "waistMaxVal");
-setupRange("chestMin", "chestMax", "chestMinVal", "chestMaxVal");
-setupRange("hipsMin", "hipsMax", "hipsMinVal", "hipsMaxVal");
 document.getElementById("ageMin").addEventListener("input", () => {
   if (document.getElementById("ageMin").value.trim()) clearErrorState(document.getElementById("ageMin"));
   autoSearch();
