@@ -341,7 +341,7 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
 
     <!-- GENDER -->
     <div class="filter-section" id="genderSection">
-      <span class="filter-label required">Gender</span>
+      <span class="filter-label">Gender</span>
       <div class="chips" id="genderChips">
         <div class="chip" data-value="male">Male</div>
         <div class="chip" data-value="female">Female</div>
@@ -629,11 +629,6 @@ function validateRequiredFields() {
   if (!photoInput.files.length) {
     setErrorState(document.getElementById("uploadZone"));
     missingFields.push("reference photo");
-  }
-
-  if (activeGender.length === 0) {
-    setErrorState(document.getElementById("genderSection"));
-    missingFields.push("gender");
   }
 
   if (missingFields.length) {
@@ -1022,7 +1017,20 @@ setupChips("workTypeChips", activeWorkTypes);
 setupChips("lookChips", activeLooks);
 setupChips("nationalityChips", activeNationalities);
 setupChips("hairChips", activeHair);
-setupChips("genderChips", activeGender);
+// Gender: single-select (clicking the active one deselects it)
+document.querySelectorAll("#genderChips .chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    const val = chip.dataset.value;
+    const isActive = chip.classList.contains("active");
+    document.querySelectorAll("#genderChips .chip").forEach(c => c.classList.remove("active"));
+    activeGender.length = 0;
+    if (!isActive) {
+      chip.classList.add("active");
+      activeGender.push(val);
+    }
+    autoSearch();
+  });
+});
 setupChips("hairColorChips", activeHairColors);
 setupChips("eyeColorChips", activeEyeColors);
 setupRange("heightMin", "heightMax", "heightMinVal", "heightMaxVal");
