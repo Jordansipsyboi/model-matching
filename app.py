@@ -106,6 +106,7 @@ def search_models():
     _threshold_pct = float(request.form.get("threshold", "50"))
     threshold = _REMAP_LO + (_threshold_pct / 100.0) * (_REMAP_HI - _REMAP_LO)
 
+    query_gender = None
     if photo_file:
         try:
             import numpy as np
@@ -183,7 +184,7 @@ def search_models():
             m.pop("_face_embedding", None)
             m["similarity"] = None
 
-    return jsonify({"models": candidates, "total": len(candidates)})
+    return jsonify({"models": candidates, "total": len(candidates), "query_gender": query_gender})
 
 
 # Columns for the downloadable roster template (order matters).
