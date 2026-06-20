@@ -33,6 +33,12 @@ client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 EXTRACT_PROMPT = """You are extracting model data from a modeling agency webpage.
 
+IMPORTANT: Some agency roster pages embed complete measurement data inside CSS-hidden elements
+(display:none, visibility:hidden, or custom web components). Even if the measurements look visually
+hidden, they are present in the DOM text. Check EVERY model card for measurement data.
+Common field names: Height/신장, Bust/Chest/가슴, Waist/허리, Hip/Hips/힙, Shoe/발사이즈.
+Map "Bust" → chest, "Hip" → hips.
+
 Look at the HTML and extract ALL models you can find. For each model return a JSON object with these fields:
 - english: full name in English (string)
 - korean: name in Korean if present, else empty string
@@ -155,8 +161,8 @@ ROSTER_PATTERNS = [
 
 
 async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
-                          profile: bool = False) -> tuple[str, list, list]:
-    """Returns (html, roster_urls, profile_urls). Pass scroll=False for single
+                          profile: bool = False) -> tuple[str, list, list, str, str]:
+    """Returns (html, roster_urls, profile_urls, rendered_text, raw_text). Pass scroll=False for single
     profile pages — the scroll-to-load-more behavior is only needed for long
     roster/listing pages, and skipping it makes profile crawls much faster.
     settle_ms is how long to pause after DOM load for JS to render; bump it on
@@ -281,8 +287,13 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
                     print(f"    [debug] screenshot failed: {e}")
 
             rendered_text = ""
+            raw_text = ""
             try:
                 rendered_text = await page.evaluate("document.body.innerText")
+            except Exception:
+                pass
+            try:
+                raw_text = await page.evaluate("document.body.textContent")
             except Exception:
                 pass
 
@@ -300,6 +311,12 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
                         ftext = ""
                     if ftext and ftext.strip():
                         rendered_text = (rendered_text + "\n" + ftext) if rendered_text else ftext
+                    try:
+                        fraw = await fr.evaluate("document.body ? document.body.textContent : ''")
+                    except Exception:
+                        fraw = ""
+                    if fraw and fraw.strip():
+                        raw_text = (raw_text + "\n" + fraw) if raw_text else fraw
             except Exception:
                 pass
 
@@ -381,13 +398,14 @@ async def fetch_page_html(url: str, scroll: bool = True, settle_ms: int = 4000,
             print(f"  Failed to load {url}: {e}")
             html = ""
             rendered_text = ""
+            raw_text = ""
             roster_urls = []
             profile_urls = []
         finally:
             await browser.close()
 
     profile_urls = _dedupe_profile_urls(profile_urls)
-    return html, roster_urls, profile_urls, rendered_text
+    return html, roster_urls, profile_urls, rendered_text, raw_text
 
 
 def _dedupe_profile_urls(profile_urls: list) -> list:
@@ -446,24 +464,28 @@ def _profile_urls_from_models(models: list, page_url: str) -> list:
     return out
 
 
-async def crawl_roster_section(url: str, agency_name: str, max_pages: int = 12) -> tuple[list, list]:
+async def crawl_roster_section(url: str, agency_name: str, max_pages: int = 12) -> tuple[list, list, str]:
     """Crawl a roster URL (e.g. a "Women" or "Men" section) and any of its
     numbered pagination continuations, merging models + profile links until
     a page adds nothing new. Handles rosters split across multiple pages
     (?page=2, /page/2/, etc.) so large sections (50-100+ models) aren't
-    cut off after the first page."""
+    cut off after the first page.
+    Returns (all_models, all_profiles, combined_raw_text)."""
     import re as _re
 
     all_models = []
     all_profiles = []
+    all_raw_text = ""
     seen_names = set()
     seen_profiles = set()
     current_url = url
 
     for page_num in range(1, max_pages + 1):
-        html, _, profile_urls, _ = await fetch_page_html(current_url)
+        html, _, profile_urls, _, raw_text = await fetch_page_html(current_url)
         if not html:
             break
+        if raw_text:
+            all_raw_text = (all_raw_text + "\n" + raw_text) if all_raw_text else raw_text
 
         models = extract_models_with_ai(html, agency_name, current_url)
         # Merge AI-read profile links (handles ?query-based sites) with heuristic ones.
@@ -504,7 +526,7 @@ async def crawl_roster_section(url: str, agency_name: str, max_pages: int = 12) 
             break
         current_url = next_url
 
-    return all_models, all_profiles
+    return all_models, all_profiles, all_raw_text
 
 
 def call_ai(html_chunk: str, agency_name: str, url: str) -> list:
@@ -890,7 +912,7 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
                         d[f] = 0
                 return d
 
-            html, _, _, rendered_text = await fetch_page_html(profile_url, scroll=False, profile=True)
+            html, _, _, rendered_text, raw_text = await fetch_page_html(profile_url, scroll=False, profile=True)
             if not html:
                 continue
             details = _extract(html, rendered_text)
@@ -898,11 +920,17 @@ async def crawl_profiles_directly(profile_urls: list, agency_name: str, existing
             # once with a longer settle in case the SPA was just slow this time.
             if not any(details.get(f) for f in ("height", "chest", "waist", "hips")):
                 print("    Empty on first read — retrying with longer wait...")
-                html, _, _, rendered_text = await fetch_page_html(profile_url, scroll=True, settle_ms=10000, profile=True)
-                if html:
-                    retry = _extract(html, rendered_text)
+                html2, _, _, rendered_text2, raw_text2 = await fetch_page_html(profile_url, scroll=True, settle_ms=10000, profile=True)
+                if html2:
+                    retry = _extract(html2, rendered_text2)
                     if any(retry.get(f) for f in ("height", "chest", "waist", "hips")):
                         details = retry
+                    else:
+                        # innerText still empty — try textContent which includes CSS-hidden elements
+                        print("    Still empty — retrying with textContent (CSS-hidden elements)...")
+                        raw_retry = _extract(html2, raw_text2)
+                        if any(raw_retry.get(f) for f in ("height", "chest", "waist", "hips")):
+                            details = raw_retry
             print(f"    AI got: height={details.get('height')} chest={details.get('chest')} waist={details.get('waist')}")
             if not details or not details.get("english"):
                 continue
@@ -971,7 +999,7 @@ async def enrich_model_profiles(models: list, base_url: str, agency_name: str):
             continue
 
         try:
-            html, _, _, rendered_text = await fetch_page_html(profile_url, profile=True)
+            html, _, _, rendered_text, _ = await fetch_page_html(profile_url, profile=True)
             if not html:
                 continue
             details = fetch_profile_details(html, profile_url, rendered_text)
@@ -1025,7 +1053,7 @@ async def crawl_agency(agency: dict, force: bool = False):
     url = agency["agency_website"]
     print(f"\nCrawling: {name} ({url})")
 
-    html, roster_urls, profile_urls, _ = await fetch_page_html(url)
+    html, roster_urls, profile_urls, _, homepage_raw_text = await fetch_page_html(url)
     if not html:
         print(f"  Skipping — could not load page")
         return 0
@@ -1044,18 +1072,45 @@ async def crawl_agency(agency: dict, force: bool = False):
     all_profile_urls = list(profile_urls)
     total_saved = 0
 
+    MEAS_FIELDS = ("height", "chest", "waist", "hips")
+
     # Process the homepage's own profile links right away, then each section as
     # we discover it — saving after EACH section instead of scanning everything
     # first. That way a crash/hang in one section never loses the sections that
     # already finished, and data shows up in the DB much sooner.
-    async def process_batch(batch_profiles, roster_models, label):
+    async def process_batch(batch_profiles, roster_models, label, list_raw_text=None):
         nonlocal total_saved
+        # If the list page already returned measurement data for any model,
+        # save those directly and skip crawling their individual profile pages.
+        models_with_meas = [m for m in roster_models if m.get("english") and any(m.get(f) for f in MEAS_FIELDS)]
+        if models_with_meas:
+            print(f"  [{label}] List page has measurements for {len(models_with_meas)} model(s) — saving directly")
+            total_saved += save_crawled_models(models_with_meas, name)
+            # Models without measurements still need profile crawls
+            meas_names = {m["english"].upper() for m in models_with_meas}
+            remaining_profiles = [p for m, p in zip(roster_models, batch_profiles or [])
+                                   if m.get("english", "").upper() not in meas_names] if batch_profiles else []
+            if remaining_profiles:
+                print(f"  [{label}] Crawling {len(remaining_profiles)} remaining profile(s) without measurements...")
+                await crawl_profiles_directly(remaining_profiles, name, roster_models, force=force)
+            print(f"  [{label}] Done.")
+            return
+
         if batch_profiles:
             print(f"  [{label}] Crawling {len(batch_profiles)} profile page(s) for photos + measurements...")
-            await crawl_profiles_directly(batch_profiles, name, roster_models, force=force)
+            results = await crawl_profiles_directly(batch_profiles, name, roster_models, force=force)
+            # If profile crawl yielded nothing and we have textContent from the list page,
+            # retry by running AI on the raw DOM text (includes CSS-hidden measurement data)
+            if not results and list_raw_text:
+                print(f"  [{label}] Profile crawl empty — retrying list page with textContent...")
+                fallback_models = call_ai(list_raw_text[:40000], name, label)
+                fallback_with_meas = [m for m in fallback_models if m.get("english") and any(m.get(f) for f in MEAS_FIELDS)]
+                if fallback_with_meas:
+                    print(f"  [{label}] textContent fallback found {len(fallback_with_meas)} model(s) with measurements")
+                    total_saved += save_crawled_models(fallback_with_meas, name)
         else:
             # No profile pages — keep only roster rows that actually have data
-            keep = [m for m in roster_models if m.get("english") and any(m.get(f) for f in ("height", "chest", "waist", "hips"))]
+            keep = [m for m in roster_models if m.get("english") and any(m.get(f) for f in MEAS_FIELDS)]
             if keep:
                 total_saved += save_crawled_models(keep, name)
         # crawl_profiles_directly already saves each profile immediately, so just
@@ -1063,9 +1118,9 @@ async def crawl_agency(agency: dict, force: bool = False):
         print(f"  [{label}] Done.")
 
     if profile_urls:
-        await process_batch(profile_urls, models, "homepage")
+        await process_batch(profile_urls, models, "homepage", homepage_raw_text)
     elif models:
-        await process_batch([], models, "homepage")
+        await process_batch([], models, "homepage", homepage_raw_text)
 
     if roster_urls:
         print(f"  Found {len(roster_urls)} roster section(s): {roster_urls[:8]}")
@@ -1073,7 +1128,7 @@ async def crawl_agency(agency: dict, force: bool = False):
             label = roster_url.rstrip("/").split("/")[-1] or roster_url
             print(f"  Crawling section: {roster_url}")
             try:
-                sub_models, sub_profiles = await crawl_roster_section(roster_url, name)
+                sub_models, sub_profiles, section_raw_text = await crawl_roster_section(roster_url, name)
             except Exception as e:
                 print(f"  Section {label} failed: {e} — skipping, keeping earlier sections")
                 continue
@@ -1085,7 +1140,7 @@ async def crawl_agency(agency: dict, force: bool = False):
             seen_profiles.update(new_profiles)
             all_profile_urls.extend(new_profiles)
             # Save this section's people now, before moving to the next section
-            await process_batch(new_profiles, new_models, label)
+            await process_batch(new_profiles, new_models, label, section_raw_text)
 
     # Flag models we'd previously crawled who no longer appear anywhere on the site
     if all_profile_urls:
