@@ -135,21 +135,10 @@ def search_models():
                 if norm > 0:
                     query_emb = query_emb / norm
 
-                # Detect gender of the uploaded photo and filter to same gender.
-                # InsightFace genderage returns 'M' or 'F'; DB stores 'male'/'female'.
-                query_gender = None
-                if query_info and query_info.get("gender"):
-                    raw_g = query_info["gender"]  # 'M' or 'F'
-                    query_gender = "male" if raw_g == "M" else "female"
-
                 scored = []
                 for m in candidates:
                     emb_bytes = m.pop("_face_embedding", None)
                     if emb_bytes:
-                        # Gender filter: skip models whose gender doesn't match query
-                        if query_gender and m.get("gender") and m["gender"].lower() != query_gender:
-                            m["similarity"] = None
-                            continue
                         db_emb = np.frombuffer(emb_bytes, dtype=np.float32).copy()
                         raw_similarity = float(np.dot(query_emb, db_emb))
                         # Exponentiation (alpha boost) commented out — use raw cosine directly.
