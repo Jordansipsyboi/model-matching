@@ -135,9 +135,24 @@ def search_models():
                 if norm > 0:
                     query_emb = query_emb / norm
 
+                # Detect gender from the uploaded photo via InsightFace genderage module.
+                # 'M'/'F' → 'male'/'female' to match the DB gender column.
+                raw_sex = query_info.get("gender") if query_info else None
+                if raw_sex == "M":
+                    query_gender = "male"
+                elif raw_sex == "F":
+                    query_gender = "female"
+                else:
+                    query_gender = None
+                    print("[FaceSearch] Could not determine gender from uploaded photo — gender filter will not be applied")
+
                 scored = []
                 for m in candidates:
                     emb_bytes = m.pop("_face_embedding", None)
+                    # Skip models of a different gender when the photo gender is known.
+                    if query_gender and m.get("gender") and m["gender"] != query_gender:
+                        m["similarity"] = None
+                        continue
                     if emb_bytes:
                         db_emb = np.frombuffer(emb_bytes, dtype=np.float32).copy()
                         raw_similarity = float(np.dot(query_emb, db_emb))
