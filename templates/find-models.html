@@ -352,32 +352,6 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
 
 
 
-    <!-- HAIR COLOR -->
-    <div class="filter-section">
-      <span class="filter-label">Hair Color</span>
-      <div class="chips" id="hairColorChips">
-        <div class="chip" data-value="black">Black</div>
-        <div class="chip" data-value="brown">Brown</div>
-        <div class="chip" data-value="blonde">Blonde</div>
-        <div class="chip" data-value="red">Red</div>
-        <div class="chip" data-value="grey">Grey</div>
-        <div class="chip" data-value="other">Other</div>
-      </div>
-    </div>
-
-    <!-- EYE COLOR -->
-    <div class="filter-section">
-      <span class="filter-label">Eye Color</span>
-      <div class="chips" id="eyeColorChips">
-        <div class="chip" data-value="brown">Brown</div>
-        <div class="chip" data-value="dark brown">Dark Brown</div>
-        <div class="chip" data-value="black">Black</div>
-        <div class="chip" data-value="blue">Blue</div>
-        <div class="chip" data-value="green">Green</div>
-        <div class="chip" data-value="hazel">Hazel</div>
-      </div>
-    </div>
-
     </div><!-- end filters-grid -->
 
     <button class="find-btn" id="findBtn">Find Matches</button>
@@ -526,8 +500,6 @@ let activeLooks = [];
 let activeNationalities = [];
 let activeHair = [];
 let activeGender = [];
-let activeHairColors = [];
-let activeEyeColors = [];
 let photoFile = null;
 let filteredModels = [];
 
@@ -682,9 +654,6 @@ function applyFilters() {
     // Chest
     // Hips
     // Hair color
-    if (activeHairColors.length > 0 && !activeHairColors.includes(m.hair_color)) return false;
-    // Eye color
-    if (activeEyeColors.length > 0 && !activeEyeColors.includes(m.eye_color)) return false;
     // Age
     const age = new Date().getFullYear() - m.birth;
     // Gender
@@ -859,8 +828,6 @@ document.getElementById("findBtn").addEventListener("click", async () => {
     fd.append("work_types", activeWorkTypes.join(","));
     fd.append("looks", activeLooks.join(","));
     fd.append("nationalities", activeNationalities.join(","));
-    fd.append("hair_colors", activeHairColors.join(","));
-    fd.append("eye_colors", activeEyeColors.join(","));
     // Only send range filters when the user has actually moved them from default.
     // At default (min=slider.min, max=slider.max), models with 0/missing
     // measurements would be wrongly excluded by the DB query.
@@ -907,7 +874,7 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   document.getElementById("heightMaxVal").textContent = 200;
 
   document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
-  activeWorkTypes.length = 0; activeLooks.length = 0; activeNationalities.length = 0; activeGender.length = 0; activeHairColors.length = 0; activeEyeColors.length = 0;
+  activeWorkTypes.length = 0; activeLooks.length = 0; activeNationalities.length = 0; activeGender.length = 0;
   filteredModels = [...MODELS];
   document.getElementById("modelGrid").innerHTML = "";
   document.getElementById("resultCount").textContent = "0";
@@ -939,8 +906,6 @@ document.querySelectorAll("#genderChips .chip").forEach(chip => {
     autoSearch();
   });
 });
-setupChips("hairColorChips", activeHairColors);
-setupChips("eyeColorChips", activeEyeColors);
 setupRange("heightMin", "heightMax", "heightMinVal", "heightMaxVal");
 document.getElementById("ageMin").addEventListener("input", () => {
   if (document.getElementById("ageMin").value.trim()) clearErrorState(document.getElementById("ageMin"));
