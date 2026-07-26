@@ -671,15 +671,58 @@ def get_all_users():
     return result
 
 
-def get_models_by_agency(agency_name):
-    """All models belonging to one agency (matched by agency_name), for the
-    agency's own management dashboard."""
+# Filler words ignored when matching a registered company name to the
+# agency_name stored on models, so "morph agency" links to "MORPH Management".
+_AGENCY_STOPWORDS = {
+    "agency", "agencies", "management", "mgmt", "models", "model", "modeling",
+    "the", "inc", "ltd", "co", "company", "studio", "studios", "group",
+}
+
+
+def _agency_tokens(name):
+    """Distinctive lowercased word tokens of an agency name, filler words removed."""
+    import re as _re
+    if not name:
+        return set()
+    tokens = _re.sub(r"[^a-z0-9 ]", " ", name.lower()).split()
+    core = {t for t in tokens if t not in _AGENCY_STOPWORDS}
+    return core or set(tokens)
+
+
+def agency_names_matching(company):
+    """Distinct models.agency_name values that correspond to a registered
+    company, using forgiving matching (case/spacing/filler-word insensitive).
+    A match requires the distinctive word sets to overlap, e.g.
+    "morph agency" ↔ "MORPH Management" (both contain "morph")."""
+    want = _agency_tokens(company)
+    if not want:
+        return []
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT * FROM models WHERE agency_name = %s ORDER BY english",
-                (agency_name,),
+                "SELECT DISTINCT agency_name FROM models "
+                "WHERE agency_name IS NOT NULL AND agency_name != ''"
+            )
+            names = [r["agency_name"] for r in cur.fetchall()]
+    finally:
+        conn.close()
+    return [n for n in names if _agency_tokens(n) & want]
+
+
+def get_models_by_agency(company):
+    """All models belonging to one registered company (forgiving name match),
+    for the agency's own management dashboard."""
+    names = agency_names_matching(company)
+    if not names:
+        return []
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            fmt = ",".join(["%s"] * len(names))
+            cur.execute(
+                f"SELECT * FROM models WHERE agency_name IN ({fmt}) ORDER BY english",
+                names,
             )
             rows = cur.fetchall()
     finally:

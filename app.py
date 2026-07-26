@@ -548,11 +548,12 @@ def my_models_update():
     model_id = data.pop("id", "")
     if not model_id:
         return jsonify({"error": "Missing id"}), 400
-    # Ownership check: agencies may only edit models under their own company name.
+    # Ownership check: agencies may only edit models under their own company
+    # name (forgiving match, same rule that populates their dashboard).
     owner = database.get_model_owner(model_id)
     if owner is None:
         return jsonify({"error": "Model not found"}), 404
-    if owner != user["company"]:
+    if owner not in database.agency_names_matching(user["company"]):
         return jsonify({"error": "You can only edit your own agency's models"}), 403
 
     int_fields = {"birth", "height", "chest", "waist", "hips", "shoes", "rate"}
