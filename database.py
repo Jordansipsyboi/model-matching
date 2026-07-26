@@ -689,11 +689,23 @@ def _agency_tokens(name):
     return core or set(tokens)
 
 
+def _tokens_overlap(a, b):
+    """True if the two distinctive-token sets share a token, allowing one to be
+    a prefix/substring of the other (>=4 chars) so "morph" matches "morphmgmt"."""
+    for x in a:
+        for y in b:
+            if x == y:
+                return True
+            if len(x) >= 4 and len(y) >= 4 and (x in y or y in x):
+                return True
+    return False
+
+
 def agency_names_matching(company):
     """Distinct models.agency_name values that correspond to a registered
     company, using forgiving matching (case/spacing/filler-word insensitive).
     A match requires the distinctive word sets to overlap, e.g.
-    "morph agency" ↔ "MORPH Management" (both contain "morph")."""
+    "MORPH Management" ↔ "morphmgmt" (both contain "morph")."""
     want = _agency_tokens(company)
     if not want:
         return []
@@ -707,7 +719,7 @@ def agency_names_matching(company):
             names = [r["agency_name"] for r in cur.fetchall()]
     finally:
         conn.close()
-    return [n for n in names if _agency_tokens(n) & want]
+    return [n for n in names if _tokens_overlap(_agency_tokens(n), want)]
 
 
 def get_models_by_agency(company):
