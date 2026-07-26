@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Up — Model Matching</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #fff; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
+.box { width: 380px; max-width: 100%; }
+h1 { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 0.4rem; }
+.sub { font-size: 0.8rem; color: #666; margin-bottom: 2rem; }
+label.field { display: block; font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; color: #888; margin-bottom: 0.35rem; margin-top: 1.1rem; }
+input { width: 100%; border: none; border-bottom: 1px solid #000; padding: 0.55rem 0; font-size: 0.9rem; font-family: inherit; outline: none; }
+button { width: 100%; background: #000; color: #fff; border: none; padding: 0.9rem; font-family: inherit; font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; margin-top: 2rem; }
+.error { font-size: 0.75rem; color: #c00; margin-bottom: 1rem; }
+.roles { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.4rem; }
+.role-opt { border: 1px solid #000; padding: 0.9rem 0.6rem; text-align: center; cursor: pointer; font-size: 0.72rem; letter-spacing: 0.05em; user-select: none; }
+.role-opt.active { background: #000; color: #fff; }
+.role-opt small { display: block; font-size: 0.6rem; color: #999; margin-top: 0.3rem; letter-spacing: 0; }
+.role-opt.active small { color: #bbb; }
+.foot { font-size: 0.75rem; color: #666; margin-top: 1.5rem; text-align: center; }
+.foot a { color: #000; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Create Account</h1>
+  <p class="sub">Join the Model Matching platform.</p>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form method="POST" id="signupForm">
+    <label class="field">I am a</label>
+    <div class="roles">
+      <div class="role-opt{% if role == 'agency' %} active{% endif %}" data-value="agency">
+        Model Agency<small>List &amp; manage models</small>
+      </div>
+      <div class="role-opt{% if role == 'production' %} active{% endif %}" data-value="production">
+        Production / Casting<small>Search &amp; book models</small>
+      </div>
+    </div>
+    <input type="hidden" name="role" id="roleInput" value="{{ role or '' }}">
+
+    <label class="field">Contact / Preferred Name</label>
+    <input type="text" name="contact_name" value="{{ contact_name or '' }}" placeholder="e.g. Alex" required>
+
+    <label class="field">Company / Organization</label>
+    <input type="text" name="company" value="{{ company or '' }}" placeholder="e.g. MORPH Management" required>
+
+    <label class="field">Email</label>
+    <input type="email" name="email" value="{{ email or '' }}" placeholder="you@company.com" required>
+
+    <label class="field">Mobile Number (optional)</label>
+    <input type="text" name="phone" value="{{ phone or '' }}" placeholder="+1 ...">
+
+    <label class="field">Password</label>
+    <input type="password" name="password" placeholder="At least 6 characters" required>
+
+    <button type="submit">Create Account</button>
+  </form>
+  <p class="foot">Already have an account? <a href="/login">Log in</a></p>
+</div>
+<script>
+  const opts = document.querySelectorAll(".role-opt");
+  const roleInput = document.getElementById("roleInput");
+  opts.forEach(o => o.addEventListener("click", () => {
+    opts.forEach(x => x.classList.remove("active"));
+    o.classList.add("active");
+    roleInput.value = o.dataset.value;
+  }));
+</script>
+</body>
+</html>

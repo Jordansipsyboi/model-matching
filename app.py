@@ -4,6 +4,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from werkzeug.security import generate_password_hash, check_password_hash
 
 import database
 
@@ -465,6 +466,111 @@ def submit_agency():
 
 # ── Admin routes ───────────────────────────────────────────────
 
+# ── Public accounts (registration / login) ─────────────────────
+VALID_ROLES = {"agency", "production"}
+
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        role         = (request.form.get("role") or "").strip()
+        contact_name = (request.form.get("contact_name") or "").strip()
+        company      = (request.form.get("company") or "").strip()
+        email        = (request.form.get("email") or "").strip().lower()
+        phone        = (request.form.get("phone") or "").strip()
+        password     = request.form.get("password") or ""
+
+        if role not in VALID_ROLES:
+            return render_template("signup.html", error="Please choose a role.")
+        if not contact_name or not company or not email or not password:
+            return render_template("signup.html", error="Please fill in all required fields.",
+                                   role=role, contact_name=contact_name, company=company,
+                                   email=email, phone=phone)
+        if len(password) < 6:
+            return render_template("signup.html", error="Password must be at least 6 characters.",
+                                   role=role, contact_name=contact_name, company=company,
+                                   email=email, phone=phone)
+
+        user_id, err = database.create_user(
+            role, contact_name, company, email, phone,
+            generate_password_hash(password),
+        )
+        if err:
+            return render_template("signup.html", error=err,
+                                   role=role, contact_name=contact_name, company=company,
+                                   email=email, phone=phone)
+
+        session["user"] = {"id": user_id, "role": role, "name": contact_name,
+                           "company": company, "email": email}
+        return redirect(url_for("my_models") if role == "agency" else url_for("find_models"))
+
+    return render_template("signup.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email    = (request.form.get("email") or "").strip().lower()
+        password = request.form.get("password") or ""
+        user = database.get_user_by_email(email)
+        if not user or not check_password_hash(user["password_hash"], password):
+            return render_template("login.html", error="Wrong email or password.", email=email)
+        session["user"] = {"id": user["id"], "role": user["role"], "name": user["contact_name"],
+                           "company": user["company"], "email": user["email"]}
+        return redirect(url_for("my_models") if user["role"] == "agency" else url_for("find_models"))
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    return redirect(url_for("index"))
+
+
+@app.route("/my-models")
+def my_models():
+    """Agency self-service dashboard: view and edit only their own models."""
+    user = session.get("user")
+    if not user:
+        return redirect(url_for("login"))
+    if user["role"] != "agency":
+        return redirect(url_for("find_models"))
+    models = database.get_models_by_agency(user["company"])
+    return render_template("my_models.html", user=user, models=models)
+
+
+@app.route("/my-models/update", methods=["POST"])
+def my_models_update():
+    user = session.get("user")
+    if not user or user["role"] != "agency":
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(force=True) or {}
+    model_id = data.pop("id", "")
+    if not model_id:
+        return jsonify({"error": "Missing id"}), 400
+    # Ownership check: agencies may only edit models under their own company name.
+    owner = database.get_model_owner(model_id)
+    if owner is None:
+        return jsonify({"error": "Model not found"}), 404
+    if owner != user["company"]:
+        return jsonify({"error": "You can only edit your own agency's models"}), 403
+
+    int_fields = {"birth", "height", "chest", "waist", "hips", "shoes", "rate"}
+    fields = {}
+    for k, v in data.items():
+        if k in int_fields:
+            try:
+                fields[k] = int(v) if v not in (None, "") else None
+            except (ValueError, TypeError):
+                fields[k] = None
+        else:
+            fields[k] = v
+    updated = database.update_model(model_id, fields)
+    if not updated:
+        return jsonify({"error": "Nothing changed"}), 400
+    return jsonify({"status": "ok"})
+
+
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     error = None
@@ -689,6 +795,17 @@ def admin_bookings():
         return redirect(url_for("admin_login"))
     bookings = database.get_bookings()
     return render_template("admin_bookings.html", bookings=bookings)
+
+
+@app.route("/admin/registrations")
+def admin_registrations():
+    if not session.get("admin"):
+        return redirect(url_for("admin_login"))
+    users = database.get_all_users()
+    agencies    = [u for u in users if u.get("role") == "agency"]
+    productions = [u for u in users if u.get("role") == "production"]
+    return render_template("admin_registrations.html",
+                           agencies=agencies, productions=productions)
 
 
 if __name__ == "__main__":

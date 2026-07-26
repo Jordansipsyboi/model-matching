@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Models — Model Matching</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #fafafa; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #111; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 2rem; background: #fff; border-bottom: 1px solid #eee; }
+header h1 { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; }
+header .who { font-size: 0.72rem; color: #666; }
+header a { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: #000; text-decoration: none; margin-left: 1.4rem; }
+.wrap { max-width: 1000px; margin: 2rem auto; padding: 0 1.5rem; }
+.intro { font-size: 0.85rem; color: #555; margin-bottom: 1.5rem; }
+.empty { font-size: 0.9rem; color: #888; padding: 3rem 0; text-align: center; }
+.card { background: #fff; border: 1px solid #eee; margin-bottom: 1rem; padding: 1.2rem 1.4rem; }
+.card-top { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.card-top .name { font-size: 1rem; font-weight: 600; }
+.card-top .name span { font-size: 0.78rem; color: #999; font-weight: 400; margin-left: 0.5rem; }
+.card-top .toggle { font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; color: #888; }
+.editor { display: none; margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid #f0f0f0; }
+.editor.open { display: block; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.9rem 1.1rem; }
+.fld label { display: block; font-size: 0.58rem; letter-spacing: 0.16em; text-transform: uppercase; color: #999; margin-bottom: 0.25rem; }
+.fld input, .fld select { width: 100%; border: 1px solid #ddd; padding: 0.45rem 0.5rem; font-size: 0.85rem; font-family: inherit; outline: none; }
+.fld input:focus, .fld select:focus { border-color: #000; }
+.row-actions { margin-top: 1.1rem; display: flex; align-items: center; gap: 1rem; }
+button.save { background: #000; color: #fff; border: none; padding: 0.6rem 1.4rem; font-family: inherit; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; }
+.status { font-size: 0.75rem; color: #2a8a3e; }
+.status.err { color: #c00; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Models</h1>
+  <div>
+    <span class="who">{{ user.company }} · {{ user.name }}</span>
+    <a href="/find-models">Search</a>
+    <a href="/logout">Log Out</a>
+  </div>
+</header>
+<div class="wrap">
+  <p class="intro">These are the models listed under <strong>{{ user.company }}</strong>. You can adjust their details here if anything needs correcting — click a model to expand.</p>
+
+  {% if not models %}
+    <div class="empty">No models found under "{{ user.company }}" yet.<br>Make sure your company name matches how your agency is listed.</div>
+  {% endif %}
+
+  {% for m in models %}
+  <div class="card" data-id="{{ m.id }}">
+    <div class="card-top" onclick="this.parentElement.querySelector('.editor').classList.toggle('open')">
+      <div class="name">{{ m.english or m.id }}{% if m.korean %}<span>{{ m.korean }}</span>{% endif %}</div>
+      <div class="toggle">Edit ▾</div>
+    </div>
+    <div class="editor">
+      <div class="grid">
+        <div class="fld"><label>English Name</label><input data-f="english" value="{{ m.english or '' }}"></div>
+        <div class="fld"><label>Korean Name</label><input data-f="korean" value="{{ m.korean or '' }}"></div>
+        <div class="fld"><label>Birth Year</label><input data-f="birth" value="{{ m.birth or '' }}"></div>
+        <div class="fld"><label>Gender</label>
+          <select data-f="gender">
+            <option value="female" {% if m.gender == 'female' %}selected{% endif %}>Female</option>
+            <option value="male" {% if m.gender == 'male' %}selected{% endif %}>Male</option>
+          </select>
+        </div>
+        <div class="fld"><label>Nationality</label><input data-f="nationality" value="{{ m.nationality or '' }}"></div>
+        <div class="fld"><label>Height (cm)</label><input data-f="height" value="{{ m.height or '' }}"></div>
+        <div class="fld"><label>Chest (cm)</label><input data-f="chest" value="{{ m.chest or '' }}"></div>
+        <div class="fld"><label>Waist (cm)</label><input data-f="waist" value="{{ m.waist or '' }}"></div>
+        <div class="fld"><label>Hips (cm)</label><input data-f="hips" value="{{ m.hips or '' }}"></div>
+        <div class="fld"><label>Shoes (mm)</label><input data-f="shoes" value="{{ m.shoes or '' }}"></div>
+        <div class="fld"><label>Day Rate (USD)</label><input data-f="rate" value="{{ m.rate or '' }}"></div>
+      </div>
+      <div class="row-actions">
+        <button class="save" onclick="saveModel(this)">Save</button>
+        <span class="status"></span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<script>
+async function saveModel(btn) {
+  const card = btn.closest(".card");
+  const status = card.querySelector(".status");
+  const payload = { id: card.dataset.id };
+  card.querySelectorAll("[data-f]").forEach(el => { payload[el.dataset.f] = el.value; });
+  status.textContent = "Saving...";
+  status.classList.remove("err");
+  try {
+    const res = await fetch("/my-models/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      status.textContent = "Saved ✓";
+    } else {
+      status.textContent = data.error || "Failed";
+      status.classList.add("err");
+    }
+  } catch (e) {
+    status.textContent = "Network error";
+    status.classList.add("err");
+  }
+}
+</script>
+</body>
+</html>

@@ -138,6 +138,22 @@ def init_db():
                 created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
             ) CHARACTER SET utf8mb4
         """)
+        # Public accounts. role is 'agency' (Model Agency) or 'production'
+        # (Production Team / Brand / Casting Director). Agencies are linked to
+        # their models by matching company against models.agency_name.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id            INT AUTO_INCREMENT PRIMARY KEY,
+                role          VARCHAR(50) NOT NULL,
+                contact_name  VARCHAR(255) NOT NULL,
+                company       VARCHAR(255) NOT NULL,
+                email         VARCHAR(255) NOT NULL,
+                phone         VARCHAR(100),
+                password_hash VARCHAR(255) NOT NULL,
+                created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_users_email (email)
+            ) CHARACTER SET utf8mb4
+        """)
     conn.commit()
     conn.close()
     ensure_face_embedding_column()
@@ -600,6 +616,87 @@ def get_bookings():
         rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ── User accounts (public registration) ────────────────────────────
+def create_user(role, contact_name, company, email, phone, password_hash):
+    """Insert a new user account. Returns (user_id, None) on success or
+    (None, error_message) on failure (e.g. duplicate email)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO users
+                   (role, contact_name, company, email, phone, password_hash)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (role, contact_name, company, email, phone, password_hash),
+            )
+            conn.commit()
+            return cur.lastrowid, None
+    except pymysql.err.IntegrityError:
+        return None, "An account with that email already exists."
+    except Exception as e:
+        return None, str(e)
+    finally:
+        conn.close()
+
+
+def get_user_by_email(email):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM users WHERE email = %s", (email,))
+            row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def get_all_users():
+    """All registered accounts, newest first (for the admin registrations view)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM users ORDER BY created_at DESC")
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        d.pop("password_hash", None)  # never expose hashes to the template
+        if d.get("created_at") and hasattr(d["created_at"], "isoformat"):
+            d["created_at"] = d["created_at"].isoformat()
+        result.append(d)
+    return result
+
+
+def get_models_by_agency(agency_name):
+    """All models belonging to one agency (matched by agency_name), for the
+    agency's own management dashboard."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM models WHERE agency_name = %s ORDER BY english",
+                (agency_name,),
+            )
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    return [_row_to_model(r) for r in rows]
+
+
+def get_model_owner(model_id):
+    """Return the agency_name that owns a model, or None if not found."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT agency_name FROM models WHERE id = %s", (model_id,))
+            row = cur.fetchone()
+        return row["agency_name"] if row else None
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":
