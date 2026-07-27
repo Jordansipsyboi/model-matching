@@ -452,6 +452,9 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
         <p class="modal-section-label">Look</p>
         <div class="modal-tags" id="modalLooks"></div>
       </div>
+      <a id="viewProfileLink" href="#" target="_blank" rel="noopener"
+         style="display:none;text-align:center;width:100%;margin-top:1rem;font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--black);text-decoration:underline;">
+         View full profile &amp; photos ↗</a>
       <button class="modal-contact" id="openBookingBtn" type="button">Request Booking</button>
     </div>
   </div>
@@ -799,6 +802,16 @@ function openModal(id) {
 `;
   document.getElementById("modalTags").innerHTML = m.workTypes.map(t => `<span class="modal-tag">${t}</span>`).join("");
   document.getElementById("modalLooks").innerHTML = m.looks.map(l => `<span class="modal-tag">${l}</span>`).join("");
+
+  // "View full profile" link — opens the agency's original page (all their
+  // photos) in a new tab. Hidden when we don't have a profile URL.
+  const vp = document.getElementById("viewProfileLink");
+  if (m.profile_url) {
+    vp.href = m.profile_url;
+    vp.style.display = "block";
+  } else {
+    vp.style.display = "none";
+  }
 
   // Request Booking button — opens booking form modal
   document.getElementById("openBookingBtn").dataset.modelId = id;
