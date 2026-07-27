@@ -554,7 +554,9 @@ VALID_ROLES = {"agency", "production"}
 
 
 def _dashboard_for(user):
-    return url_for("my_models") if user.get("role") == "agency" else url_for("find_models")
+    # Everyone lands on the home page after login; agencies can reach their
+    # "My Models" dashboard from the nav there.
+    return url_for("index")
 
 
 @app.route("/signup", methods=["GET", "POST"])
