@@ -274,6 +274,7 @@ td { padding: 10px 16px; vertical-align: middle; }
       <div class="edit-actions">
         <button type="submit" class="edit-save-btn" id="edit-save-btn">Save</button>
         <button type="button" class="edit-cancel-btn" onclick="closeEditModal()">Cancel</button>
+        <button type="button" onclick="deleteModelAdmin()" style="background:#fff;color:#c00;border:1px solid #c00;padding:0.55rem 1.2rem;font-family:inherit;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-left:0.5rem;">Delete</button>
         <span id="edit-modal-msg"></span>
       </div>
     </form>
@@ -462,6 +463,32 @@ function closeEditModal() {
 
 function handleOverlayClick(e) {
   if (e.target === document.getElementById('edit-modal-overlay')) closeEditModal();
+}
+
+function deleteModelAdmin() {
+  const modelId = document.getElementById('edit-model-id').value;
+  const msg = document.getElementById('edit-modal-msg');
+  const nameEl = document.getElementById('ef-english');
+  const name = nameEl ? nameEl.value : modelId;
+  if (!confirm(`Delete ${name}? This permanently removes the model.`)) return;
+  msg.textContent = 'Deleting...';
+  fetch('/admin/model/delete', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id: modelId}),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        ALL_MODELS = ALL_MODELS.filter(m => m.id !== modelId);
+        modelsFiltered = modelsFiltered.filter(m => m.id !== modelId);
+        renderModelsPage();
+        closeEditModal();
+      } else {
+        msg.textContent = data.error || 'Delete failed.';
+      }
+    })
+    .catch(() => { msg.textContent = 'Network error.'; });
 }
 
 function saveModel(e) {

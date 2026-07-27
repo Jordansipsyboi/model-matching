@@ -677,12 +677,16 @@ def my_models():
         return redirect(url_for("login"))
     if user["role"] != "agency":
         return redirect(url_for("find_models"))
-    # Prefer models explicitly claimed by this account (exact owner ID — no
-    # name collisions). Fall back to forgiving name match for agencies that
-    # haven't been claimed yet.
-    models = database.get_models_by_owner(user["id"])
-    if not models:
-        models = database.get_models_by_agency(user["company"])
+    # Show everything belonging to this agency: models explicitly claimed by
+    # this account (exact owner ID) PLUS models matched to the company name
+    # (e.g. added via the public listing page or crawl), deduped by id.
+    owned = database.get_models_by_owner(user["id"])
+    named = database.get_models_by_agency(user["company"])
+    seen, models = set(), []
+    for m in owned + named:
+        if m["id"] not in seen:
+            seen.add(m["id"])
+            models.append(m)
     return render_template("my_models.html", user=user, models=models)
 
 
@@ -917,6 +921,19 @@ def admin_model_update():
     updated = database.update_model(model_id, fields)
     if not updated:
         return jsonify({"error": "Model not found or nothing changed"}), 404
+    return jsonify({"status": "ok"})
+
+
+@app.route("/admin/model/delete", methods=["POST"])
+def admin_model_delete():
+    if not session.get("admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(force=True) or {}
+    model_id = data.get("id", "")
+    if not model_id:
+        return jsonify({"error": "Missing id"}), 400
+    if not database.delete_model(model_id):
+        return jsonify({"error": "Model not found"}), 404
     return jsonify({"status": "ok"})
 
 
