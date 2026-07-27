@@ -429,7 +429,8 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
       <p style="margin-bottom:1rem">Your inquiry is ready to send.</p>
       <p style="font-size:0.72rem;color:var(--gray-400);margin-bottom:1rem">Choose how you'd like to send it — the agency and our team will both receive it.</p>
       <a id="openMailApp" href="#" style="display:block;background:var(--black);color:#fff;padding:0.8rem;text-decoration:none;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.6rem;">Open in Email App</a>
-      <a id="openGmail" href="#" target="_blank" rel="noopener" style="display:block;border:1px solid var(--black);color:var(--black);padding:0.8rem;text-decoration:none;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:1rem;">Open in Gmail (browser)</a>
+      <a id="openGmail" href="#" target="_blank" rel="noopener" style="display:block;border:1px solid var(--black);color:var(--black);padding:0.8rem;text-decoration:none;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.6rem;">Open in Gmail (browser)</a>
+      <button id="copyDraft" type="button" style="display:block;width:100%;border:1px solid var(--black);background:#fff;color:var(--black);padding:0.8rem;font-family:inherit;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:1rem;cursor:pointer;">Copy Email (any provider)</button>
       <div style="text-align:left;background:#f7f7f7;padding:0.9rem;font-size:0.72rem;line-height:1.5;color:#333;margin-bottom:1rem;">
         <div><strong>To:</strong> <span id="draftTo"></span></div>
         <div style="margin-bottom:0.5rem"><strong>Subject:</strong> <span id="draftSubject"></span></div>
@@ -995,6 +996,24 @@ document.getElementById("openBookingBtn").addEventListener("click", () => {
 function closeBookModal() {
   document.getElementById("bookModalBg").classList.remove("open");
 }
+
+// Copy the full draft so users on any provider (QQ, 163, Outlook, etc.) can
+// paste it into their own webmail.
+document.getElementById("copyDraft").addEventListener("click", () => {
+  const to = document.getElementById("draftTo").textContent;
+  const subject = document.getElementById("draftSubject").textContent;
+  const body = document.getElementById("draftBody").textContent;
+  const text = `To: ${to}\nSubject: ${subject}\n\n${body}`;
+  const btn = document.getElementById("copyDraft");
+  const done = () => { btn.textContent = "Copied ✓"; setTimeout(() => { btn.textContent = "Copy Email (any provider)"; }, 2000); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => {
+      window.prompt("Copy this email:", text);
+    });
+  } else {
+    window.prompt("Copy this email:", text);
+  }
+});
 
 document.getElementById("bookCancelBtn").addEventListener("click", closeBookModal);
 document.getElementById("bookSuccessClose").addEventListener("click", closeBookModal);
