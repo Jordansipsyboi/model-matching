@@ -60,7 +60,10 @@ button.save { background: #000; color: #fff; border: none; padding: 0.6rem 1.4re
   {% for m in models %}
   <div class="card" data-id="{{ m.id }}">
     <div class="card-top" onclick="this.parentElement.querySelector('.editor').classList.toggle('open')">
-      <div class="name">{{ m.english or m.id }}{% if m.korean %}<span>{{ m.korean }}</span>{% endif %}</div>
+      <div class="name">{{ m.english or m.id }}{% if m.korean %}<span>{{ m.korean }}</span>{% endif %}
+        {% if m.approved %}<span style="font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;color:#2a8a3e;margin-left:0.6rem;">● Live</span>
+        {% else %}<span style="font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;color:#c88a00;margin-left:0.6rem;">● Pending review</span>{% endif %}
+      </div>
       <div class="toggle">Edit ▾</div>
     </div>
     <div class="editor">

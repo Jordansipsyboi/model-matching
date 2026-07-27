@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pending Approval — Model Matching Admin</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #fafafa; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #111; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 2rem; background: #fff; border-bottom: 1px solid #eee; }
+header h1 { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; }
+header a { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: #000; text-decoration: none; margin-left: 1.4rem; }
+.wrap { max-width: 1000px; margin: 2rem auto; padding: 0 1.5rem; }
+.lead { font-size: 0.85rem; color: #555; margin-bottom: 1.5rem; }
+.group { background: #fff; border: 1px solid #eee; margin-bottom: 1.4rem; }
+.group-head { display: flex; align-items: center; justify-content: space-between; padding: 0.9rem 1.2rem; border-bottom: 1px solid #f0f0f0; }
+.group-head .name { font-size: 0.9rem; font-weight: 600; }
+.group-head .email { font-size: 0.72rem; color: #888; }
+.row { display: flex; align-items: center; gap: 1rem; padding: 0.7rem 1.2rem; border-bottom: 1px solid #f4f4f4; }
+.row:last-child { border-bottom: none; }
+.row img { width: 44px; height: 56px; object-fit: cover; background: #eee; }
+.row .info { flex: 1; font-size: 0.82rem; }
+.row .info .mname { font-weight: 600; }
+.row .info .meas { color: #888; font-size: 0.72rem; }
+button { font-family: inherit; cursor: pointer; border: 1px solid #000; background: #fff; padding: 0.4rem 0.9rem; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; }
+button.primary { background: #000; color: #fff; }
+button:disabled { opacity: 0.5; cursor: default; }
+.empty { font-size: 0.9rem; color: #888; padding: 3rem 0; text-align: center; }
+.status { font-size: 0.7rem; color: #2a8a3e; margin-left: 0.5rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pending Approval</h1>
+  <div>
+    <a href="/admin">Dashboard</a>
+    <a href="/admin/registrations">Registrations</a>
+    <a href="/admin/bookings">Bookings</a>
+    <a href="/admin/logout">Log Out</a>
+  </div>
+</header>
+<div class="wrap">
+  <p class="lead">These models were added by agencies (compcards, uploads, or crawl) and are <strong>hidden from search</strong> until you approve them. Review, then approve to make them live.</p>
+
+  {% if total == 0 %}
+    <div class="empty">Nothing pending — everything's reviewed. ✓</div>
+  {% endif %}
+
+  {% for company, models in groups.items() %}
+  <div class="group" data-company="{{ company }}">
+    <div class="group-head">
+      <div>
+        <div class="name">{{ company }}</div>
+        <div class="email">{{ models[0].owner_email or '' }} · {{ models|length }} pending</div>
+      </div>
+      <button class="primary" onclick="approveGroup(this)">Approve all</button>
+    </div>
+    {% for m in models %}
+    <div class="row" data-id="{{ m.id }}">
+      <img src="{{ m.photo_url }}" alt="">
+      <div class="info">
+        <div class="mname">{{ m.english or m.id }}</div>
+        <div class="meas">{{ m.gender }} · H{{ m.height }} · C{{ m.chest }}/W{{ m.waist }}/Hip{{ m.hips }} · Shoe {{ m.shoes }}</div>
+      </div>
+      <button onclick="approveOne(this)">Approve</button>
+      <span class="status"></span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+<script>
+async function postApprove(ids) {
+  const res = await fetch("/admin/approve", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids })
+  });
+  return res.ok;
+}
+async function approveOne(btn) {
+  const row = btn.closest(".row");
+  btn.disabled = true;
+  if (await postApprove([row.dataset.id])) {
+    row.querySelector(".status").textContent = "Live ✓";
+    btn.style.display = "none";
+  } else { btn.disabled = false; alert("Failed"); }
+}
+async function approveGroup(btn) {
+  const group = btn.closest(".group");
+  const ids = [...group.querySelectorAll(".row")].map(r => r.dataset.id);
+  btn.disabled = true; btn.textContent = "Approving…";
+  if (await postApprove(ids)) {
+    group.querySelectorAll(".row .status").forEach(s => s.textContent = "Live ✓");
+    group.querySelectorAll(".row button").forEach(b => b.style.display = "none");
+    btn.textContent = "Approved ✓";
+  } else { btn.disabled = false; btn.textContent = "Approve all"; alert("Failed"); }
+}
+</script>
+</body>
+</html>

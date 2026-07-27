@@ -161,6 +161,7 @@ def init_db():
     ensure_face_gender_age_columns()
     ensure_active_column()
     ensure_owner_column()
+    ensure_approved_column()
 
 
 def seed_db():
@@ -222,6 +223,7 @@ def _row_to_model(row):
         "photo_url": row["photo_url"] or "",
         "agency_name": row["agency_name"] or "",
         "profile_url": row["profile_url"] or "",
+        "approved": row.get("approved", 1),
         "agency_email": row.get("agency_email") or "",
         "agency_website_url": row.get("agency_website_url") or "",
         # metric
@@ -393,10 +395,15 @@ def get_all_agencies():
     return result
 
 
-def get_all_models(active_only=False):
+def get_all_models(active_only=False, approved_only=False):
     conn = get_connection()
     with conn.cursor() as cur:
-        where = "WHERE m.active = 1" if active_only else ""
+        conds = []
+        if active_only:
+            conds.append("m.active = 1")
+        if approved_only:
+            conds.append("m.approved = 1")
+        where = ("WHERE " + " AND ".join(conds)) if conds else ""
         cur.execute(f"""
             SELECT m.*, a.contact_email as agency_email, a.agency_website as agency_website_url
             FROM models m
@@ -438,7 +445,7 @@ def set_models_active(ids, active=True):
 
 def get_models_for_search(filters: dict) -> list:
     """Return models matching filter criteria, including raw face_embedding bytes."""
-    conditions = ["m.active = 1"]
+    conditions = ["m.active = 1", "m.approved = 1"]
     params = []
 
     if filters.get("gender"):
@@ -765,6 +772,79 @@ def ensure_owner_column():
             if cur.fetchone()["cnt"] == 0:
                 cur.execute("ALTER TABLE models ADD COLUMN owner_user_id INT DEFAULT NULL")
                 conn.commit()
+    finally:
+        conn.close()
+
+
+def ensure_approved_column():
+    """Add approved flag to models. New rows default to 0 (pending, hidden from
+    search) so nothing goes public without review. Existing rows at migration
+    time are grandfathered to 1 so current live data doesn't disappear."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT COUNT(*) as cnt FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'models' AND COLUMN_NAME = 'approved'
+            """, (DB_NAME,))
+            if cur.fetchone()["cnt"] == 0:
+                cur.execute("ALTER TABLE models ADD COLUMN approved TINYINT(1) DEFAULT 0")
+                # Grandfather everything already in the DB as approved.
+                cur.execute("UPDATE models SET approved = 1")
+                conn.commit()
+    finally:
+        conn.close()
+
+
+def get_pending_models():
+    """Models awaiting approval (approved = 0), with owner/agency contact info,
+    for the admin review page."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT m.*, u.email as owner_email, u.company as owner_company
+                FROM models m
+                LEFT JOIN users u ON u.id = m.owner_user_id
+                WHERE m.approved = 0
+                ORDER BY m.agency_name, m.english
+            """)
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    out = []
+    for r in rows:
+        m = _row_to_model(r)
+        m["owner_email"] = r.get("owner_email") or ""
+        m["owner_company"] = r.get("owner_company") or ""
+        out.append(m)
+    return out
+
+
+def approve_models(ids):
+    """Mark models live (approved = 1). ids is a list of model ids."""
+    if not ids:
+        return 0
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            fmt = ",".join(["%s"] * len(ids))
+            cur.execute(f"UPDATE models SET approved = 1 WHERE id IN ({fmt})", ids)
+            conn.commit()
+            return cur.rowcount
+    finally:
+        conn.close()
+
+
+def set_model_approval(model_id, approved):
+    """Set a single model's approved flag (1 live / 0 pending)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE models SET approved = %s WHERE id = %s",
+                        (1 if approved else 0, model_id))
+            conn.commit()
+            return cur.rowcount > 0
     finally:
         conn.close()
 

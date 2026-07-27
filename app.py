@@ -54,7 +54,7 @@ def list_models():
 
 @app.route("/api/models")
 def api_models():
-    return jsonify(database.get_all_models(active_only=True))
+    return jsonify(database.get_all_models(active_only=True, approved_only=True))
 
 
 @app.route("/api/search-models", methods=["POST"])
@@ -337,6 +337,53 @@ def _extract_local_embedding(path):
         return None
 
 
+def _compcard_headshot_and_embedding(src_path, dst_path):
+    """From a compcard image, find the largest/clearest face, crop a clean
+    headshot around it and save to dst_path, and return the normalized face
+    embedding bytes. Returns (embedding_bytes_or_None, cropped_bool).
+    Falls back to copying the original image if no face/crop is possible."""
+    import numpy as np
+    import cv2
+    emb_bytes = None
+    cropped = False
+    try:
+        img = cv2.imread(src_path)
+        if img is None:
+            return None, False
+        comparator = get_face_comparator()
+        # Use the array path (no 3:4 padding) so the bbox is in ORIGINAL coords.
+        emb, info = comparator.extract_face_embedding_from_array(img)
+        if emb is not None:
+            emb = emb.astype("float32")
+            n = np.linalg.norm(emb)
+            if n > 0:
+                emb = emb / n
+            emb_bytes = emb.tobytes()
+        # Crop a headshot around the detected face (hair above, shoulders below).
+        if info and info.get("bbox"):
+            h, w = img.shape[:2]
+            x1, y1, x2, y2 = [float(v) for v in info["bbox"]]
+            fw, fh = (x2 - x1), (y2 - y1)
+            cx1 = max(0, int(x1 - fw * 0.55))
+            cy1 = max(0, int(y1 - fh * 0.75))
+            cx2 = min(w, int(x2 + fw * 0.55))
+            cy2 = min(h, int(y2 + fh * 1.15))
+            crop = img[cy1:cy2, cx1:cx2]
+            if crop.size > 0:
+                cv2.imwrite(dst_path, crop)
+                cropped = True
+    except Exception as e:
+        print(f"[headshot] failed for {src_path}: {e}")
+    if not cropped:
+        # No usable crop — keep the original image as the photo.
+        try:
+            import shutil
+            shutil.copyfile(src_path, dst_path)
+        except Exception:
+            pass
+    return emb_bytes, cropped
+
+
 def _process_roster_upload(csv_file, zip_file, agency_name):
     """Parse an uploaded CSV roster + optional ZIP of photos, saving each model.
     Photos are matched to rows by slug(name) == slug(photo filename). Returns
@@ -448,12 +495,11 @@ def _import_compcards(files, agency_name, owner_user_id=None):
                 results.append({"file": f.filename, "ok": False, "error": "Could not read a name from this card"})
                 continue
             slug = _slug(name)
-            photo_name = f"{slug}{ext}"
+            # Save a cropped HEADSHOT (not the whole compcard) as the model photo.
+            photo_name = f"{slug}.jpg"
             photo_path = os.path.join(PHOTO_DIR, photo_name)
-            with open(tmp_path, "rb") as src, open(photo_path, "wb") as dst:
-                dst.write(src.read())
+            face_embedding, _cropped = _compcard_headshot_and_embedding(tmp_path, photo_path)
             photo_url = f"/static/model_photos/{photo_name}"
-            face_embedding = _extract_local_embedding(photo_path)
             model = {
                 "english": name,
                 "gender": (data.get("gender") or "female").strip().lower(),
@@ -916,6 +962,31 @@ def admin_bookings():
         return redirect(url_for("admin_login"))
     bookings = database.get_bookings()
     return render_template("admin_bookings.html", bookings=bookings)
+
+
+@app.route("/admin/pending")
+def admin_pending():
+    if not session.get("admin"):
+        return redirect(url_for("admin_login"))
+    models = database.get_pending_models()
+    # Group by agency for a clean review list.
+    groups = {}
+    for m in models:
+        key = m.get("owner_company") or m.get("agency_name") or "—"
+        groups.setdefault(key, []).append(m)
+    return render_template("admin_pending.html", groups=groups, total=len(models))
+
+
+@app.route("/admin/approve", methods=["POST"])
+def admin_approve():
+    if not session.get("admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(force=True) or {}
+    ids = data.get("ids") or ([data["id"]] if data.get("id") else [])
+    if not ids:
+        return jsonify({"error": "No ids"}), 400
+    n = database.approve_models(ids)
+    return jsonify({"status": "ok", "approved": n})
 
 
 @app.route("/admin/registrations")
