@@ -500,6 +500,13 @@ def _import_compcards(files, agency_name, owner_user_id=None):
             photo_path = os.path.join(PHOTO_DIR, photo_name)
             face_embedding, _cropped = _compcard_headshot_and_embedding(tmp_path, photo_path)
             photo_url = f"/static/model_photos/{photo_name}"
+            # Keep the FULL compcard too, linked as the "view full profile" image
+            # so buyers can see the whole card (all photos + details).
+            card_name = f"{slug}_card{ext}"
+            card_path = os.path.join(PHOTO_DIR, card_name)
+            with open(tmp_path, "rb") as src, open(card_path, "wb") as dst:
+                dst.write(src.read())
+            card_url = f"/static/model_photos/{card_name}"
             model = {
                 "english": name,
                 "gender": (data.get("gender") or "female").strip().lower(),
@@ -512,6 +519,7 @@ def _import_compcards(files, agency_name, owner_user_id=None):
                 "eye_color": (data.get("eye_color") or "brown").strip().lower(),
                 "nationality": "other",
                 "photo_url": photo_url,
+                "profile_url": card_url,
                 "workTypes": [], "looks": [],
             }
             mid = database.upsert_model(model, agency_name, face_embedding, owner_user_id=owner_user_id)
