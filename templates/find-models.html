@@ -519,6 +519,7 @@ let activeNationalities = [];
 let activeHair = [];
 let activeGender = [];
 let photoFile = null;
+let photoDataUrl = null;
 let filteredModels = [];
 
 function clearValidationBanner() {
@@ -766,6 +767,7 @@ document.getElementById("photoInput").addEventListener("change", function() {
   document.getElementById("similaritySection").style.display = "block";
   const reader = new FileReader();
   reader.onload = e => {
+    photoDataUrl = e.target.result;
     const preview = document.getElementById("uploadPreview");
     preview.src = e.target.result;
     preview.style.display = "block";
@@ -886,6 +888,17 @@ document.getElementById("findBtn").addEventListener("click", async () => {
     _hasResults = true;
     renderCards(filteredModels);
     requestAnimationFrame(() => requestAnimationFrame(() => section.classList.add("visible")));
+
+    // Cache this search so a page refresh restores the results instead of
+    // dropping the user back to the empty upload screen. Results (small) and
+    // the photo (larger) are stored separately so results still restore even
+    // if the photo blows the storage quota.
+    try {
+      sessionStorage.setItem("mm_lastResults", JSON.stringify({ models: filteredModels, threshold: similarityThreshold }));
+    } catch (e) {}
+    try {
+      if (photoDataUrl) sessionStorage.setItem("mm_lastPhoto", photoDataUrl);
+    } catch (e) {}
   } catch (err) {
     console.error(err);
     alert("Search failed. Please try again.");
@@ -909,6 +922,7 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   document.getElementById("resultsSection").classList.remove("visible");
   document.querySelector(".page").classList.remove("results-open");
   clearValidationStates();
+  try { sessionStorage.removeItem("mm_lastResults"); sessionStorage.removeItem("mm_lastPhoto"); } catch (e) {}
 });
 document.getElementById("sortSelect").addEventListener("change", sortModels);
 document.getElementById("keywordInput").addEventListener("input", () => {
@@ -936,7 +950,42 @@ document.querySelectorAll("#genderChips .chip").forEach(chip => {
 });
 setupRange("heightMin", "heightMax", "heightMinVal", "heightMaxVal");
 
-// Don't render on load — wait for Find Matches click
+// Don't render on load — wait for Find Matches click.
+// EXCEPT: if there's a cached search (from before a refresh), restore it so the
+// user keeps their results instead of being dropped back to the upload screen.
+(function restoreLastSearch() {
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem("mm_lastResults") || "null"); } catch (e) {}
+  if (!saved || !Array.isArray(saved.models) || !saved.models.length) return;
+
+  const photo = (() => { try { return sessionStorage.getItem("mm_lastPhoto"); } catch (e) { return null; } })();
+  if (photo) {
+    photoDataUrl = photo;
+    const preview = document.getElementById("uploadPreview");
+    preview.src = photo; preview.style.display = "block";
+    document.getElementById("uploadPlaceholder").style.display = "none";
+    document.getElementById("similaritySection").style.display = "block";
+    const badge = document.getElementById("analyzingBadge");
+    badge.style.display = "block";
+    badge.textContent = "● Photo ready — click Find Matches to search";
+    // Rebuild a File from the data URL so changing a filter can re-search.
+    fetch(photo).then(r => r.blob())
+      .then(b => { photoFile = new File([b], "reference.jpg", { type: b.type || "image/jpeg" }); })
+      .catch(() => {});
+  }
+  if (saved.threshold) {
+    similarityThreshold = saved.threshold;
+    document.querySelectorAll(".sim-preset").forEach(b =>
+      b.classList.toggle("active", b.dataset.val === saved.threshold));
+  }
+  filteredModels = saved.models;
+  MODELS = saved.models;
+  _hasResults = true;
+  document.querySelector(".page").classList.add("results-open");
+  renderCards(filteredModels);
+  const section = document.getElementById("resultsSection");
+  requestAnimationFrame(() => requestAnimationFrame(() => section.classList.add("visible")));
+})();
 
 
 // ── Booking Modal ────────────────────────────────────────────────

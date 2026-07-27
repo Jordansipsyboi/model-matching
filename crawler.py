@@ -121,6 +121,8 @@ Extract the model's data and return ONLY a JSON object with these fields:
 - shoes: shoe size in mm as integer
 - hair_color: e.g. "black", "brown", "blonde"
 - eye_color: e.g. "brown", "black", "blue"
+- ethnicity: the model's apparent ethnicity from the photo, one of
+  "asian", "white", "black", "hispanic", "middle_eastern", "mixed", "other"
 - agency_email: the contact email printed on the card, else ""
 
 Measurements are usually a labeled line like

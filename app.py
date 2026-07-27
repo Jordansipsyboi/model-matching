@@ -469,6 +469,19 @@ def _process_roster_upload(csv_file, zip_file, agency_name):
     return imported
 
 
+_ETHNICITIES = {"asian", "white", "black", "hispanic", "middle_eastern", "mixed", "other"}
+
+
+def _clean_ethnicity(val):
+    """Keep a recognized ethnicity from vision; fall back to Asian if blank."""
+    v = (val or "").strip().lower().replace("/", "").replace(" ", "_")
+    if v in ("latino", "hispaniclatino", "latinx"):
+        v = "hispanic"
+    if v in ("caucasian",):
+        v = "white"
+    return v if v in _ETHNICITIES else "asian"
+
+
 def _import_compcards(files, agency_name, owner_user_id=None):
     """Read each uploaded compcard image (Claude vision), save the image as the
     model's photo, extract the main face embedding, and upsert the model under
@@ -517,7 +530,9 @@ def _import_compcards(files, agency_name, owner_user_id=None):
                 "shoes": _normalize_shoes(data.get("shoes")),
                 "hair_color": (data.get("hair_color") or "black").strip().lower(),
                 "eye_color": (data.get("eye_color") or "brown").strip().lower(),
-                "nationality": "other",
+                # Use the ethnicity the photo shows; only fall back to Asian
+                # (K-market default) when the guess is blank/unrecognized.
+                "nationality": _clean_ethnicity(data.get("ethnicity")),
                 "photo_url": photo_url,
                 "profile_url": card_url,
                 "workTypes": [], "looks": [],
