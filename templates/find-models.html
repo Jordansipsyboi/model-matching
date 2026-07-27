@@ -954,6 +954,15 @@ setupRange("heightMin", "heightMax", "heightMinVal", "heightMaxVal");
 // EXCEPT: if there's a cached search (from before a refresh), restore it so the
 // user keeps their results instead of being dropped back to the upload screen.
 (function restoreLastSearch() {
+  // Only restore on an actual page reload/refresh. On a fresh navigation
+  // (clicking a link, coming from login, etc.) start clean and drop any stale
+  // cached results so the user gets the original empty find-models page.
+  const nav = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0]) || null;
+  const isReload = nav ? nav.type === "reload" : false;
+  if (!isReload) {
+    try { sessionStorage.removeItem("mm_lastResults"); sessionStorage.removeItem("mm_lastPhoto"); } catch (e) {}
+    return;
+  }
   let saved = null;
   try { saved = JSON.parse(sessionStorage.getItem("mm_lastResults") || "null"); } catch (e) {}
   if (!saved || !Array.isArray(saved.models) || !saved.models.length) return;
