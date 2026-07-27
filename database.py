@@ -162,6 +162,7 @@ def init_db():
     ensure_active_column()
     ensure_owner_column()
     ensure_approved_column()
+    migrate_nationality_to_ethnicity()
 
 
 def seed_db():
@@ -792,6 +793,24 @@ def ensure_approved_column():
                 # Grandfather everything already in the DB as approved.
                 cur.execute("UPDATE models SET approved = 1")
                 conn.commit()
+    finally:
+        conn.close()
+
+
+def migrate_nationality_to_ethnicity():
+    """Remap old nationality values to the ethnicity category set. Idempotent:
+    only rows still holding an old value are touched."""
+    mapping = {
+        "korean": "asian", "japanese": "asian", "chinese": "asian",
+        "southeast_asian": "asian", "se_asian": "asian",
+        "european": "white", "american": "white",
+    }
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            for old, new in mapping.items():
+                cur.execute("UPDATE models SET nationality = %s WHERE nationality = %s", (new, old))
+        conn.commit()
     finally:
         conn.close()
 

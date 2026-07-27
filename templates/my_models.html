@@ -77,7 +77,14 @@ button.save { background: #000; color: #fff; border: none; padding: 0.6rem 1.4re
             <option value="male" {% if m.gender == 'male' %}selected{% endif %}>Male</option>
           </select>
         </div>
-        <div class="fld"><label>Nationality</label><input data-f="nationality" value="{{ m.nationality or '' }}"></div>
+        <div class="fld"><label>Ethnicity</label>
+          <select data-f="nationality">
+            {% set eth = (m.nationality or 'other') %}
+            {% for val, lbl in [('asian','Asian'),('white','White'),('black','Black'),('hispanic','Hispanic / Latino'),('middle_eastern','Middle Eastern'),('mixed','Mixed'),('other','Other')] %}
+            <option value="{{ val }}" {% if eth == val %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
         <div class="fld"><label>Height (cm)</label><input data-f="height" value="{{ m.height or '' }}"></div>
         <div class="fld"><label>Chest (cm)</label><input data-f="chest" value="{{ m.chest or '' }}"></div>
         <div class="fld"><label>Waist (cm)</label><input data-f="waist" value="{{ m.waist or '' }}"></div>

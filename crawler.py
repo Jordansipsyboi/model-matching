@@ -51,7 +51,7 @@ Look at the HTML and extract ALL models you can find. For each model return a JS
 - hair_length: one of "short", "medium", "long", "buzzcut", "bald"
 - hair_color: e.g. "black", "brown", "blonde"
 - eye_color: e.g. "brown", "black", "blue"
-- nationality: one of "korean", "japanese", "chinese", "american", "european", "southeast_asian", "other"
+- nationality: the model's apparent ethnicity, one of "asian", "white", "black", "hispanic", "middle_eastern", "mixed", "other"
 - workTypes: list from ["runway","editorial","campaign","commercial","ecommerce","social","lookbook","event"]
 - looks: list from ["clean","edgy","athletic","highfashion","natural","classic"]
 - rate: day rate in USD as integer (if not listed use 0)
