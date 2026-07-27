@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Model Matching</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #fff; color: #000; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 13px; }
+header { padding: 20px 40px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; font-weight: 400; }
+.header-right { display: flex; align-items: center; gap: 2rem; }
+.header-right span { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: #888; }
+.logout { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: #000; text-decoration: none; border-bottom: 1px solid #000; padding-bottom: 1px; }
+
+/* Tabs */
+.tabs { display: flex; border-bottom: 1px solid #e0e0e0; padding: 0 40px; }
+.tab { padding: 14px 0; margin-right: 32px; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; border-bottom: 2px solid transparent; color: #888; }
+.tab.active { color: #000; border-bottom-color: #000; }
+
+/* Search */
+.toolbar { padding: 16px 40px; border-bottom: 1px solid #f0f0f0; }
+.toolbar input { width: 300px; border: none; border-bottom: 1px solid #d0d0d0; padding: 6px 0; font-size: 12px; font-family: inherit; outline: none; }
+.toolbar input:focus { border-bottom-color: #000; }
+
+/* Tables */
+.panel { display: none; }
+.panel.active { display: block; }
+table { width: 100%; border-collapse: collapse; }
+thead th { text-align: left; padding: 10px 16px; font-size: 0.6rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: #888; border-bottom: 1px solid #e0e0e0; position: sticky; top: 0; background: #fff; }
+tbody tr { border-bottom: 1px solid #f5f5f5; transition: background 0.1s; }
+tbody tr:hover { background: #fafafa; }
+td { padding: 10px 16px; vertical-align: middle; }
+.photo { width: 40px; height: 52px; object-fit: cover; display: block; background: #f0f0f0; }
+.no-photo { width: 40px; height: 52px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 16px; }
+.name-main { font-weight: 500; font-size: 12px; }
+.name-sub { color: #888; font-size: 11px; margin-top: 1px; }
+.tag { background: #f0f0f0; padding: 2px 8px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.dot-green { display: inline-block; width: 6px; height: 6px; background: #22c55e; border-radius: 50%; margin-right: 6px; }
+.dot-gray  { display: inline-block; width: 6px; height: 6px; background: #d0d0d0; border-radius: 50%; margin-right: 6px; }
+.ext-link { color: #000; text-decoration: none; border-bottom: 1px solid #d0d0d0; font-size: 11px; }
+.ext-link:hover { border-bottom-color: #000; }
+.missing { color: #ccc; }
+.crawl-btn { background: #000; color: #fff; border: none; padding: 5px 12px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; }
+.crawl-btn:disabled { background: #888; cursor: default; }
+.del-btn { background: #fff; color: #000; border: 1px solid #d0d0d0; padding: 5px 12px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; margin-left: 6px; }
+.del-btn:hover { border-color: #c00; color: #c00; }
+.del-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Pagination */
+.pagination-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 40px; border-top: 1px solid #f0f0f0; font-size: 0.65rem; color: #888; }
+.pagination-bar select { border: none; border-bottom: 1px solid #d0d0d0; padding: 3px 4px; font-family: inherit; font-size: 0.65rem; outline: none; margin-left: 6px; cursor: pointer; }
+.pagination-info { letter-spacing: 0.08em; }
+.page-btns { display: flex; gap: 4px; }
+.page-btn { border: 1px solid #e0e0e0; background: #fff; padding: 4px 10px; font-family: inherit; font-size: 0.6rem; cursor: pointer; letter-spacing: 0.1em; }
+.page-btn.active { background: #000; color: #fff; border-color: #000; }
+.page-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* Edit button */
+.edit-btn { background: #fff; color: #000; border: 1px solid #d0d0d0; padding: 5px 12px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; margin-left: 6px; }
+.edit-btn:hover { border-color: #000; }
+
+/* Edit modal */
+#edit-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; }
+#edit-modal-overlay.open { display: flex; }
+#edit-modal { background: #fff; border: 1px solid #e0e0e0; padding: 36px 40px; width: 580px; max-width: 95vw; max-height: 90vh; overflow-y: auto; position: relative; }
+#edit-modal h2 { font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase; font-weight: 400; margin-bottom: 24px; }
+#edit-modal .close-btn { position: absolute; top: 14px; right: 18px; font-size: 18px; background: none; border: none; cursor: pointer; color: #888; line-height: 1; }
+#edit-modal .close-btn:hover { color: #000; }
+.edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+.edit-field { display: flex; flex-direction: column; gap: 4px; }
+.edit-field label { font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: #888; }
+.edit-field input, .edit-field select { border: none; border-bottom: 1px solid #d0d0d0; padding: 5px 0; font-size: 12px; font-family: inherit; outline: none; background: transparent; }
+.edit-field input:focus, .edit-field select:focus { border-bottom-color: #000; }
+.edit-actions { margin-top: 24px; display: flex; gap: 10px; align-items: center; }
+.edit-save-btn { background: #000; color: #fff; border: none; padding: 8px 20px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; }
+.edit-save-btn:disabled { background: #888; cursor: default; }
+.edit-cancel-btn { background: #fff; color: #000; border: 1px solid #d0d0d0; padding: 8px 20px; font-family: inherit; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; }
+#edit-modal-msg { font-size: 0.65rem; color: #888; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Model Matching — Admin</h1>
+  <div class="header-right">
+    <span>{{ models|length }} models &nbsp;·&nbsp; {{ agencies|length }} agencies</span>
+    <a href="/admin/pending" style="font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#888;text-decoration:none;">Pending</a>
+    <a href="/admin/registrations" style="font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#888;text-decoration:none;">Registrations</a>
+    <a href="/admin/bookings" style="font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#888;text-decoration:none;">Bookings</a>
+    <a href="/admin/logout" class="logout">Logout</a>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('agencies', this)">Agencies</div>
+  <div class="tab" onclick="switchTab('models', this)">Models</div>
+</div>
+
+<div class="toolbar">
+  <input type="text" id="q" placeholder="Search..." oninput="filterTable()">
+</div>
+
+<!-- AGENCIES PANEL -->
+<div class="panel active" id="panel-agencies">
+  <div style="margin-bottom:14px;">
+    <button class="crawl-btn" id="sync-all-btn" onclick="syncAll(this)">Sync All (due &gt; 90 days)</button>
+    <span id="sync-all-msg" style="margin-left:10px; font-size:0.7rem; color:#666;"></span>
+  </div>
+  <table id="tbl-agencies">
+    <thead>
+      <tr>
+        <th>Agency</th>
+        <th>Website</th>
+        <th>Contact</th>
+        <th>Email</th>
+        <th>Market</th>
+        <th>Models</th>
+        <th>Last Crawled</th>
+        <th>Submitted</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in agencies %}
+      <tr>
+        <td><div class="name-main">{{ a.agency_name }}</div></td>
+        <td><a href="{{ a.agency_website }}" target="_blank" class="ext-link">{{ a.agency_website|replace('https://','') |replace('http://','') }}</a></td>
+        <td>{{ a.contact_name }}</td>
+        <td><a href="mailto:{{ a.contact_email }}" class="ext-link">{{ a.contact_email }}</a></td>
+        <td><span class="tag">{{ a.market }}</span></td>
+        <td>{{ a.model_count }}</td>
+        <td>
+          {% if a.last_crawled_at %}
+            <span class="dot-green"></span>{{ a.last_crawled_at[:10] }}
+          {% else %}
+            <span class="dot-gray"></span><span class="missing">Never</span>
+          {% endif %}
+        </td>
+        <td class="missing">{{ a.submitted_at[:10] if a.submitted_at else '—' }}</td>
+        <td style="white-space:nowrap;">
+          <button class="crawl-btn" onclick="crawlAgency({{ a.id }}, this)">Sync Now</button>
+          <button class="del-btn" onclick="deleteAgency({{ a.id }}, '{{ a.agency_name|replace("'", "\\'") }}', this)">Delete</button>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" style="padding:3rem;text-align:center;color:#888;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;">No agencies registered yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- MODELS PANEL -->
+<div class="panel" id="panel-models">
+  <table id="tbl-models">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Name</th>
+        <th>Gender</th>
+        <th>Ethnicity</th>
+        <th>Height</th>
+        <th>Chest</th>
+        <th>Waist</th>
+        <th>Hips</th>
+        <th>Shoes</th>
+        <th>Hair</th>
+        <th>Eyes</th>
+        <th>Agency</th>
+        <th>Profile</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="models-tbody"></tbody>
+  </table>
+  <div class="pagination-bar" id="models-pagination">
+    <div class="pagination-info" id="models-page-info"></div>
+    <div style="display:flex;align-items:center;gap:1.5rem;">
+      <div>
+        Per page:
+        <select id="models-per-page" onchange="modelsPerPageChange()">
+          <option value="20">20</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+        </select>
+      </div>
+      <div class="page-btns" id="models-page-btns"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODEL MODAL -->
+<div id="edit-modal-overlay" onclick="handleOverlayClick(event)">
+  <div id="edit-modal">
+    <button class="close-btn" onclick="closeEditModal()" title="Close">&#x2715;</button>
+    <h2>Edit Model</h2>
+    <form id="edit-form" onsubmit="saveModel(event)">
+      <input type="hidden" id="edit-model-id">
+      <div class="edit-grid">
+        <div class="edit-field">
+          <label>English Name</label>
+          <input type="text" id="ef-english" name="english">
+        </div>
+        <div class="edit-field">
+          <label>Korean Name</label>
+          <input type="text" id="ef-korean" name="korean">
+        </div>
+        <div class="edit-field">
+          <label>Birth Year</label>
+          <input type="number" id="ef-birth" name="birth" min="1940" max="2010">
+        </div>
+        <div class="edit-field">
+          <label>Gender</label>
+          <select id="ef-gender" name="gender">
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="nonbinary">Non-binary</option>
+          </select>
+        </div>
+        <div class="edit-field">
+          <label>Ethnicity</label>
+          <select id="ef-nationality" name="nationality">
+            <option value="asian">Asian</option>
+            <option value="white">White</option>
+            <option value="black">Black</option>
+            <option value="hispanic">Hispanic / Latino</option>
+            <option value="middle_eastern">Middle Eastern</option>
+            <option value="mixed">Mixed</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="edit-field">
+          <label>Rate (USD)</label>
+          <input type="number" id="ef-rate" name="rate" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Height (cm)</label>
+          <input type="number" id="ef-height" name="height" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Chest (cm)</label>
+          <input type="number" id="ef-chest" name="chest" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Waist (cm)</label>
+          <input type="number" id="ef-waist" name="waist" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Hips (cm)</label>
+          <input type="number" id="ef-hips" name="hips" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Shoes (mm)</label>
+          <input type="number" id="ef-shoes" name="shoes" min="0">
+        </div>
+        <div class="edit-field">
+          <label>Hair Length</label>
+          <select id="ef-hair_length" name="hair_length">
+            <option value="buzzcut">Buzzcut</option>
+            <option value="short">Short</option>
+            <option value="medium">Medium</option>
+            <option value="long">Long</option>
+          </select>
+        </div>
+        <div class="edit-field">
+          <label>Hair Color</label>
+          <input type="text" id="ef-hair_color" name="hair_color">
+        </div>
+        <div class="edit-field">
+          <label>Eye Color</label>
+          <input type="text" id="ef-eye_color" name="eye_color">
+        </div>
+        <div class="edit-field">
+          <label>Active</label>
+          <select id="ef-active" name="active">
+            <option value="1">Active</option>
+            <option value="0">Inactive</option>
+          </select>
+        </div>
+      </div>
+      <div class="edit-actions">
+        <button type="submit" class="edit-save-btn" id="edit-save-btn">Save</button>
+        <button type="button" class="edit-cancel-btn" onclick="closeEditModal()">Cancel</button>
+        <button type="button" onclick="deleteModelAdmin()" style="background:#fff;color:#c00;border:1px solid #c00;padding:0.55rem 1.2rem;font-family:inherit;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-left:0.5rem;">Delete</button>
+        <span id="edit-modal-msg"></span>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script id="models-data" type="application/json">{{ models | tojson }}</script>
+
+<script>
+// ── Models pagination ──────────────────────────────────────────
+const ALL_MODELS = JSON.parse(document.getElementById('models-data').textContent);
+let modelsFiltered = ALL_MODELS.slice();
+let modelsPage = 1;
+let modelsPerPage = 50;
+
+function renderModelsPage() {
+  const start = (modelsPage - 1) * modelsPerPage;
+  const page  = modelsFiltered.slice(start, start + modelsPerPage);
+  const tbody = document.getElementById('models-tbody');
+
+  tbody.innerHTML = page.map(m => `
+    <tr>
+      <td>${m.photo_url
+        ? `<img class="photo" src="${m.photo_url}" onerror="this.parentNode.innerHTML='<div class=no-photo>?</div>'">`
+        : '<div class="no-photo">?</div>'}</td>
+      <td>
+        <div class="name-main">${m.english || '—'}</div>
+        ${m.korean ? `<div class="name-sub">${m.korean}</div>` : ''}
+      </td>
+      <td>${m.gender || '—'}</td>
+      <td>${m.nationality || '<span class="missing">—</span>'}</td>
+      <td>${m.height ? m.height + ' cm' : '<span class="missing">—</span>'}</td>
+      <td>${m.chest  || '<span class="missing">—</span>'}</td>
+      <td>${m.waist  || '<span class="missing">—</span>'}</td>
+      <td>${m.hips   || '<span class="missing">—</span>'}</td>
+      <td>${m.shoes  || '<span class="missing">—</span>'}</td>
+      <td>${m.hair_color || '—'}</td>
+      <td>${m.eye_color  || '—'}</td>
+      <td>${m.agency_name ? `<span class="tag">${m.agency_name}</span>` : '<span class="missing">—</span>'}</td>
+      <td>${m.profile_url ? `<a href="${m.profile_url}" target="_blank" class="ext-link">↗</a>` : '<span class="missing">—</span>'}</td>
+      <td style="white-space:nowrap;"><button class="edit-btn" data-model-id="${m.id}">Edit</button></td>
+    </tr>`).join('');
+
+  const total = modelsFiltered.length;
+  const totalPages = Math.ceil(total / modelsPerPage) || 1;
+  const from = total ? start + 1 : 0;
+  const to   = Math.min(start + modelsPerPage, total);
+  document.getElementById('models-page-info').textContent = `${from}–${to} of ${total} models`;
+
+  const btns = document.getElementById('models-page-btns');
+  btns.innerHTML = '';
+  const addBtn = (label, target, disabled) => {
+    const b = document.createElement('button');
+    b.className = 'page-btn' + (target === modelsPage ? ' active' : '');
+    b.textContent = label;
+    b.disabled = disabled;
+    b.onclick = () => { modelsPage = target; renderModelsPage(); };
+    btns.appendChild(b);
+  };
+  addBtn('‹', modelsPage - 1, modelsPage === 1);
+  const range = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - modelsPage) <= 2) range.push(i);
+    else if (range[range.length-1] !== '…') range.push('…');
+  }
+  range.forEach(p => {
+    if (p === '…') { const s = document.createElement('span'); s.textContent = '…'; s.style.padding='4px 6px'; btns.appendChild(s); }
+    else addBtn(p, p, false);
+  });
+  addBtn('›', modelsPage + 1, modelsPage === totalPages);
+}
+
+function modelsPerPageChange() {
+  modelsPerPage = parseInt(document.getElementById('models-per-page').value);
+  modelsPage = 1;
+  renderModelsPage();
+}
+
+renderModelsPage();
+
+// ── Tab switching ──────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('q').value = '';
+  modelsFiltered = ALL_MODELS.slice();
+  modelsPage = 1;
+  if (name === 'models') renderModelsPage();
+}
+
+// ── Search filter ──────────────────────────────────────────────
+function filterTable() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const activePanel = document.querySelector('.panel.active');
+
+  if (activePanel.id === 'panel-models') {
+    modelsFiltered = q ? ALL_MODELS.filter(m =>
+      `${m.english} ${m.korean} ${m.gender} ${m.agency_name} ${m.hair_color} ${m.eye_color}`.toLowerCase().includes(q)
+    ) : ALL_MODELS.slice();
+    modelsPage = 1;
+    renderModelsPage();
+  } else {
+    activePanel.querySelectorAll('tbody tr').forEach(tr => {
+      tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
+}
+
+// ── Delete agency ──────────────────────────────────────────────
+function deleteAgency(id, name, btn) {
+  if (!confirm(`Delete "${name}" and ALL of its models? This cannot be undone.`)) return;
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+  fetch(`/admin/delete-agency/${id}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        btn.closest('tr').remove();
+      } else {
+        alert(data.error || 'Could not delete agency.');
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+      }
+    })
+    .catch(() => { alert('Network error.'); btn.disabled = false; btn.textContent = 'Delete'; });
+}
+
+// ── Crawl ──────────────────────────────────────────────────────
+function crawlAgency(id, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Syncing...';
+  const startedAt = new Date().toISOString();
+  fetch(`/admin/crawl/${id}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(() => {
+      const interval = setInterval(() => {
+        fetch('/admin/agency-status/' + id)
+          .then(r => r.json())
+          .then(data => {
+            if (data.last_crawled_at && data.last_crawled_at > startedAt) {
+              clearInterval(interval);
+              btn.textContent = 'Done ✓';
+              btn.disabled = false;
+              setTimeout(() => location.reload(), 1000);
+            }
+          });
+      }, 6000);
+    })
+    .catch(() => { btn.textContent = 'Error'; btn.disabled = false; });
+}
+
+// ── Edit model modal ───────────────────────────────────────────
+// Use event delegation so model IDs with special chars don't break onclick attrs.
+document.getElementById('models-tbody').addEventListener('click', function(e) {
+  const btn = e.target.closest('.edit-btn');
+  if (btn) openEditModal(btn.dataset.modelId);
+});
+
+function openEditModal(modelId) {
+  const msg = document.getElementById('edit-modal-msg');
+  msg.textContent = 'Loading...';
+  document.getElementById('edit-modal-overlay').classList.add('open');
+  fetch(`/admin/model?id=${encodeURIComponent(modelId)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { msg.textContent = data.error; return; }
+      document.getElementById('edit-model-id').value = data.id;
+      const fields = ['english','korean','birth','gender','nationality','rate',
+                      'height','chest','waist','hips','shoes','hair_length',
+                      'hair_color','eye_color','active'];
+      fields.forEach(f => {
+        const el = document.getElementById('ef-' + f);
+        if (el) el.value = data[f] != null ? data[f] : '';
+      });
+      msg.textContent = '';
+    })
+    .catch(() => { msg.textContent = 'Failed to load model.'; });
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal-overlay').classList.remove('open');
+  document.getElementById('edit-modal-msg').textContent = '';
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('edit-modal-overlay')) closeEditModal();
+}
+
+function deleteModelAdmin() {
+  const modelId = document.getElementById('edit-model-id').value;
+  const msg = document.getElementById('edit-modal-msg');
+  const nameEl = document.getElementById('ef-english');
+  const name = nameEl ? nameEl.value : modelId;
+  if (!confirm(`Delete ${name}? This permanently removes the model.`)) return;
+  msg.textContent = 'Deleting...';
+  fetch('/admin/model/delete', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id: modelId}),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        ALL_MODELS = ALL_MODELS.filter(m => m.id !== modelId);
+        modelsFiltered = modelsFiltered.filter(m => m.id !== modelId);
+        renderModelsPage();
+        closeEditModal();
+      } else {
+        msg.textContent = data.error || 'Delete failed.';
+      }
+    })
+    .catch(() => { msg.textContent = 'Network error.'; });
+}
+
+function saveModel(e) {
+  e.preventDefault();
+  const modelId = document.getElementById('edit-model-id').value;
+  const btn = document.getElementById('edit-save-btn');
+  const msg = document.getElementById('edit-modal-msg');
+  const fields = ['english','korean','birth','gender','nationality','rate',
+                  'height','chest','waist','hips','shoes','hair_length',
+                  'hair_color','eye_color','active'];
+  const body = {};
+  fields.forEach(f => {
+    const el = document.getElementById('ef-' + f);
+    if (el) body[f] = el.value;
+  });
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  msg.textContent = '';
+  fetch(`/admin/model`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id: modelId, ...body}),
+  })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = 'Save';
+      if (data.status === 'ok') {
+        msg.textContent = 'Saved.';
+        const idx = ALL_MODELS.findIndex(m => m.id === modelId);
+        if (idx !== -1) {
+          Object.assign(ALL_MODELS[idx], body);
+          modelsFiltered = modelsFiltered.map(m => m.id === modelId ? ALL_MODELS[idx] : m);
+          renderModelsPage();
+        }
+        setTimeout(closeEditModal, 800);
+      } else {
+        msg.textContent = data.error || 'Save failed.';
+      }
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Save'; msg.textContent = 'Network error.'; });
+}
+
+// ── Sync all agencies due for a quarterly refresh ──────────────
+function syncAll(btn) {
+  btn.disabled = true;
+  btn.textContent = 'Starting...';
+  const msg = document.getElementById('sync-all-msg');
+  fetch('/admin/sync-all', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        msg.textContent = data.message;
+        btn.textContent = data.count ? `Syncing ${data.count}…` : 'Up to date ✓';
+        if (!data.count) { btn.disabled = false; }
+      } else {
+        msg.textContent = data.error || 'Could not start sync.';
+        btn.disabled = false;
+        btn.textContent = 'Sync All (due > 90 days)';
+      }
+    })
+    .catch(() => {
+      msg.textContent = 'Network error.';
+      btn.disabled = false;
+      btn.textContent = 'Sync All (due > 90 days)';
+    });
+}
+</script>
+</body>
+</html>

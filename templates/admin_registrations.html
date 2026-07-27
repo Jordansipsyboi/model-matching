@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registrations — Model Matching Admin</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #fafafa; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #111; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 2rem; background: #fff; border-bottom: 1px solid #eee; }
+header h1 { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; }
+header a { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: #000; text-decoration: none; margin-left: 1.4rem; }
+.wrap { max-width: 1100px; margin: 2rem auto; padding: 0 1.5rem; }
+.section { margin-bottom: 3rem; }
+.section h2 { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 0.3rem; }
+.section .count { font-size: 0.75rem; color: #888; margin-bottom: 1rem; }
+table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #eee; }
+th, td { text-align: left; padding: 0.7rem 0.9rem; font-size: 0.82rem; border-bottom: 1px solid #f0f0f0; }
+th { font-size: 0.58rem; letter-spacing: 0.16em; text-transform: uppercase; color: #999; background: #fafafa; }
+tr:last-child td { border-bottom: none; }
+td a { color: #000; }
+.empty { font-size: 0.85rem; color: #999; padding: 1.5rem 0.9rem; background: #fff; border: 1px solid #eee; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Registrations</h1>
+  <div>
+    <a href="/admin">Dashboard</a>
+    <a href="/admin/bookings">Bookings</a>
+    <a href="/admin/logout">Log Out</a>
+  </div>
+</header>
+<div class="wrap">
+
+  <div class="section">
+    <h2>Model Agencies</h2>
+    <div class="count">{{ agencies|length }} registered</div>
+    {% if agencies %}
+    <table>
+      <tr><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>Joined</th></tr>
+      {% for u in agencies %}
+      <tr>
+        <td>{{ u.company }}</td>
+        <td>{{ u.contact_name }}</td>
+        <td><a href="mailto:{{ u.email }}">{{ u.email }}</a></td>
+        <td>{{ u.phone or '—' }}</td>
+        <td>{{ u.created_at[:10] if u.created_at else '' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">No model agencies registered yet.</div>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Production / Casting</h2>
+    <div class="count">{{ productions|length }} registered</div>
+    {% if productions %}
+    <table>
+      <tr><th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>Joined</th></tr>
+      {% for u in productions %}
+      <tr>
+        <td>{{ u.company }}</td>
+        <td>{{ u.contact_name }}</td>
+        <td><a href="mailto:{{ u.email }}">{{ u.email }}</a></td>
+        <td>{{ u.phone or '—' }}</td>
+        <td>{{ u.created_at[:10] if u.created_at else '' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">No production / casting accounts registered yet.</div>
+    {% endif %}
+  </div>
+
+</div>
+</body>
+</html>

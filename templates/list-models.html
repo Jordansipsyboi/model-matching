@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>List Your Agency — Model Matching</title>
+
+<style>
+:root {
+  --black: #0a0a0a; --white: #ffffff; --gray-100: #f2f2f2;
+  --gray-200: #d0d0d0; --gray-400: #888888; --gray-600: #444444;
+  --accent: #000000; --accent-dark: #222222;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { background: var(--white); color: var(--black); font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 300; }
+
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.5rem 4rem;
+  background: rgba(250,250,248,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--gray-200);
+}
+.nav-logo { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 1.3rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--black); text-decoration: none; }
+.nav-right { display: flex; align-items: center; gap: 2rem; }
+.nav-back { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-400); text-decoration: none; transition: color 0.2s; }
+.nav-back:hover { color: var(--black); }
+.nav-cta { background: var(--black); color: var(--white); padding: 0.65rem 1.5rem; font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; transition: background 0.2s; }
+.nav-cta:hover { background: var(--accent-dark); }
+
+.hero { padding: 9rem 4rem 4rem; max-width: 860px; margin: 0 auto; text-align: center; }
+.hero-eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent); margin-bottom: 1.2rem; }
+.hero-title { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 700; line-height: 1.1; margin-bottom: 1rem; }
+.hero-title em { font-style: italic; font-weight: 700; }
+.hero-sub { font-size: 0.9rem; color: var(--gray-600); line-height: 1.8; max-width: 520px; margin: 0 auto; }
+
+.page { max-width: 860px; margin: 0 auto; padding: 3rem 4rem 6rem; }
+
+.block { margin-bottom: 3rem; padding-bottom: 3rem; border-bottom: 1px solid var(--gray-200); }
+.block:last-of-type { border-bottom: none; }
+.block-label { font-size: 0.62rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.5rem; }
+.block-title { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 1.6rem; font-weight: 700; margin-bottom: 0.4rem; }
+.block-sub { font-size: 0.82rem; color: var(--gray-600); line-height: 1.7; margin-bottom: 2rem; }
+
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.2rem; }
+.field-grid.single { grid-template-columns: 1fr; }
+.field { display: flex; flex-direction: column; gap: 0.35rem; }
+.field label { font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gray-400); }
+.field input, .field select, .field textarea {
+  border: 1px solid var(--gray-200); padding: 0.75rem 1rem;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 0.85rem; font-weight: 300;
+  background: var(--white); color: var(--black); outline: none; transition: border-color 0.2s; width: 100%;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--black); }
+.field input::placeholder, .field textarea::placeholder { color: var(--gray-400); }
+.field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239e9b90'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; cursor: pointer; }
+.field textarea { resize: vertical; min-height: 90px; }
+.field input[type="file"] { border: 1px dashed var(--gray-200); padding: 0.75rem 1rem; font-size: 0.78rem; color: var(--gray-600); cursor: pointer; background: var(--gray-100); }
+.field input[type="file"]:hover { border-color: var(--black); }
+.field input[type="file"]::file-selector-button { border: 1px solid var(--black); background: var(--white); color: var(--black); padding: 0.4rem 1rem; margin-right: 1rem; font-family: inherit; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+.template-link { font-size: 0.72rem; letter-spacing: 0.06em; color: var(--black); text-decoration: none; border-bottom: 1px solid var(--gray-200); padding-bottom: 1px; align-self: flex-start; margin-top: 0.2rem; transition: border-color 0.2s; }
+.template-link:hover { border-bottom-color: var(--black); }
+.upload-hint { font-size: 0.72rem; color: var(--gray-400); line-height: 1.6; }
+.upload-hint span { color: var(--black); }
+
+.how-it-works { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
+.step { padding: 1.5rem; border: 1px solid var(--gray-200); }
+.step-num { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 2rem; font-weight: 300; color: var(--accent); margin-bottom: 0.5rem; }
+.step-title { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.4rem; }
+.step-desc { font-size: 0.78rem; color: var(--gray-600); line-height: 1.6; }
+
+.submit-wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 2rem; border-top: 1px solid var(--gray-200); flex-wrap: wrap; gap: 1rem; }
+.submit-note { font-size: 0.78rem; color: var(--gray-400); line-height: 1.6; max-width: 380px; }
+.submit-note span { color: var(--black); }
+.btn-submit { background: var(--black); color: var(--white); border: none; padding: 1rem 3rem; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; transition: background 0.2s; }
+.btn-submit:hover { background: var(--accent-dark); }
+.btn-submit:disabled { background: var(--gray-200); color: var(--gray-400); cursor: not-allowed; }
+
+.error-banner { display: none; background: #fff0f0; border: 1px solid #ffcccc; color: #c00; padding: 0.75rem 1rem; font-size: 0.8rem; margin-bottom: 1.2rem; }
+.error-banner.visible { display: block; }
+
+.success { display: none; text-align: center; padding: 5rem 2rem; }
+.success.show { display: block; animation: fadeUp 0.5s ease; }
+.success-icon { font-size: 2.5rem; margin-bottom: 1.5rem; color: var(--accent); }
+.success-title { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 2.8rem; font-weight: 700; margin-bottom: 1rem; }
+.success-title em { font-style: italic; color: var(--accent); }
+.success-sub { font-size: 0.88rem; color: var(--gray-600); line-height: 1.8; max-width: 460px; margin: 0 auto 2rem; }
+.btn-outline { border: 1px solid var(--black); color: var(--black); padding: 0.85rem 2rem; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; display: inline-block; transition: all 0.2s; }
+.btn-outline:hover { background: var(--black); color: var(--white); }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+footer { border-top: 1px solid var(--gray-200); padding: 2.5rem 4rem; display: flex; align-items: center; justify-content: space-between; }
+.footer-logo { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 1.1rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.footer-copy { font-size: 0.75rem; color: var(--gray-400); }
+
+@media (max-width: 768px) {
+  nav { padding: 1.2rem 1.5rem; }
+  .hero { padding: 7rem 1.5rem 3rem; }
+  .page { padding: 2rem 1.5rem 4rem; }
+  .field-grid { grid-template-columns: 1fr; }
+  .how-it-works { grid-template-columns: 1fr; }
+  footer { padding: 2rem 1.5rem; flex-direction: column; gap: 1rem; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">Model Matching</a>
+  <div class="nav-right">
+    <a href="/" class="nav-back">← Back</a>
+    <a href="/find-models" class="nav-cta">Find Models</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <p class="hero-eyebrow">For Agencies & Management</p>
+  <h1 class="hero-title">Get your talent<br><em>discovered.</em></h1>
+  <p class="hero-sub">Register your agency and we'll automatically sync your model roster. Brands searching on Model Matching will find your talent instantly.</p>
+</div>
+
+<div class="page" id="mainForm">
+
+  <!-- HOW IT WORKS -->
+  <div class="block">
+    <p class="block-label">How It Works</p>
+    <h2 class="block-title">Simple. Automatic. Always up to date.</h2>
+    <p class="block-sub">No manual uploads. No comp card submissions. Just register once and we handle the rest.</p>
+
+    <div class="how-it-works">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-title">Register</div>
+        <div class="step-desc">Submit your agency name, website, and contact info below.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-title">We Sync</div>
+        <div class="step-desc">Our system automatically imports your model roster from your website.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-title">Stay Fresh</div>
+        <div class="step-desc">When you update your roster, we detect changes and keep your listing current.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AGENCY INFO -->
+  <div class="block">
+    <p class="block-label">Agency Details</p>
+    <h2 class="block-title">Tell us about your agency</h2>
+    <p class="block-sub">We'll use your website URL to import your model roster. Make sure it's the page where your models are listed.</p>
+
+    <div id="errorBanner" class="error-banner"></div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label>Agency Name *</label>
+        <input type="text" id="agencyName" placeholder="e.g. SM C&C, YG Kplus, MORPH...">
+      </div>
+      <div class="field">
+        <label>Agency Website (Roster URL) *</label>
+        <input type="url" id="agencyWebsite" placeholder="https://youragency.com/models">
+      </div>
+    </div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label>Contact Name *</label>
+        <input type="text" id="contactName" placeholder="Full name">
+      </div>
+      <div class="field">
+        <label>Contact Email *</label>
+        <input type="email" id="contactEmail" placeholder="contact@agency.com">
+      </div>
+    </div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label>Phone Number</label>
+        <input type="tel" id="contactPhone" placeholder="+82 10 0000 0000">
+      </div>
+      <div class="field">
+        <label>Primary Market *</label>
+        <select id="agencyMarket">
+          <option value="">Select market</option>
+          <option value="seoul">Seoul, Korea</option>
+          <option value="busan">Busan, Korea</option>
+          <option value="tokyo">Tokyo, Japan</option>
+          <option value="beijing">Beijing, China</option>
+          <option value="shanghai">Shanghai, China</option>
+          <option value="hongkong">Hong Kong</option>
+          <option value="taipei">Taipei, Taiwan</option>
+          <option value="bangkok">Bangkok, Thailand</option>
+          <option value="singapore">Singapore</option>
+          <option value="nyc">New York, USA</option>
+          <option value="paris">Paris, France</option>
+          <option value="milan">Milan, Italy</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-grid single">
+      <div class="field">
+        <label>Additional Notes</label>
+        <textarea id="notes" placeholder="Anything else we should know — preferred contact times, special requirements, etc."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODEL DATA UPLOAD (OPTIONAL) -->
+  <div class="block">
+    <p class="block-label">Model Data — Optional</p>
+    <h2 class="block-title">Add your models — pick one way</h2>
+    <p class="block-sub">
+      There are two ways to get your roster in. Use whichever is easiest — you only need one.
+      You can always review and edit everything afterwards.
+    </p>
+
+    <!-- METHOD 1 — COMPCARDS -->
+    <div style="border:1px solid #e5e5e5;padding:1.4rem;margin-bottom:1.2rem;">
+      <p style="font-size:0.7rem;letter-spacing:0.18em;text-transform:uppercase;color:#000;margin-bottom:0.3rem;">Method 1 — Compcards <span style="color:#888;">(easiest)</span></p>
+      <p class="upload-hint" style="margin-bottom:0.8rem;">Upload your models' compcard images. We read each card's name and measurements automatically — no typing.</p>
+      <div class="field">
+        <label>Compcard Images (JPG/PNG — select many)</label>
+        <input type="file" id="compcardFiles" accept="image/*" multiple>
+      </div>
+    </div>
+
+    <!-- METHOD 2 — SPREADSHEET + PHOTOS -->
+    <div style="border:1px solid #e5e5e5;padding:1.4rem;margin-bottom:1.2rem;">
+      <p style="font-size:0.7rem;letter-spacing:0.18em;text-transform:uppercase;color:#000;margin-bottom:0.3rem;">Method 2 — Spreadsheet + Photos</p>
+      <p class="upload-hint" style="margin-bottom:0.8rem;">Upload a CSV of measurements <strong>and</strong> a ZIP of photos together (photos matched to rows by name).</p>
+      <div class="field-grid">
+        <div class="field">
+          <label>Model Roster (CSV)</label>
+          <input type="file" id="rosterCsv" accept=".csv">
+          <a href="/model_template.csv" class="template-link" download>↓ Download CSV template (model_template.csv)</a>
+        </div>
+        <div class="field">
+          <label>Model Photos (ZIP)</label>
+          <input type="file" id="photosZip" accept=".zip">
+          <span class="upload-hint">Name each photo to match the model's name, e.g. <span>kim_jae_young.jpg</span></span>
+        </div>
+      </div>
+      <p class="upload-hint" style="margin-top:0.6rem;">
+        Template columns: name, korean_name, birth_year, gender, nationality, height,
+        chest, waist, hips, shoes, hair, eyes, rate_usd.
+        <br>Measurements can be typed in <span>cm or inches</span> — e.g. <span>186</span>,
+        <span>5'9</span>, <span>28in</span>, <span>99/39</span>. Shoes accept mm
+        (<span>280</span>) or EU (<span>42eu</span>). We normalize everything automatically.
+      </p>
+    </div>
+
+  </div>
+
+  <!-- SUBMIT -->
+  <div class="submit-wrap">
+    <p class="submit-note">By submitting you confirm you have the rights to list your agency's talent. We'll review your request within <span>48 hours</span> and email you when you're live.</p>
+    <button class="btn-submit" id="submitBtn" onclick="submitForm()">Register Agency →</button>
+  </div>
+
+</div>
+
+<!-- SUCCESS -->
+<div class="success" id="successState">
+  <div class="success-icon">✦</div>
+  <h2 class="success-title">You're <em>registered.</em></h2>
+  <p class="success-sub">We've received your agency details. Our team will review your request and reach out within 48 hours at the email you provided. Once approved, your models will appear in search automatically.</p>
+  <a href="/find-models" class="btn-outline">Browse Models →</a>
+</div>
+
+<footer>
+  <div class="footer-logo">Model Matching</div>
+  <p class="footer-copy">© 2025 Model Matching</p>
+</footer>
+
+<script>
+function submitForm() {
+  const agencyName    = document.getElementById('agencyName').value.trim();
+  const agencyWebsite = document.getElementById('agencyWebsite').value.trim();
+  const contactName   = document.getElementById('contactName').value.trim();
+  const contactEmail  = document.getElementById('contactEmail').value.trim();
+  const market        = document.getElementById('agencyMarket').value;
+
+  const banner = document.getElementById('errorBanner');
+  banner.classList.remove('visible');
+
+  const missing = [];
+  if (!agencyName)    missing.push('Agency Name');
+  if (!agencyWebsite) missing.push('Agency Website');
+  if (!contactName)   missing.push('Contact Name');
+  if (!contactEmail)  missing.push('Contact Email');
+  if (!market)        missing.push('Primary Market');
+
+  if (missing.length) {
+    banner.textContent = 'Please fill in: ' + missing.join(', ');
+    banner.classList.add('visible');
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  const formData = new FormData();
+  formData.append('agencyName',    agencyName);
+  formData.append('agencyWebsite', agencyWebsite);
+  formData.append('contactName',   contactName);
+  formData.append('contactEmail',  contactEmail);
+  formData.append('agencyMarket',  market);
+  formData.append('notes',         document.getElementById('notes').value.trim());
+
+  const compcardInput = document.getElementById('compcardFiles');
+  if (compcardInput && compcardInput.files.length) {
+    for (const f of compcardInput.files) formData.append('compcards', f);
+  }
+  const csvInput = document.getElementById('rosterCsv');
+  const zipInput = document.getElementById('photosZip');
+  if (csvInput && csvInput.files.length) formData.append('rosterCsv', csvInput.files[0]);
+  if (zipInput && zipInput.files.length) formData.append('photosZip', zipInput.files[0]);
+
+  fetch('/api/submit-agency', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        document.getElementById('mainForm').style.display = 'none';
+        document.getElementById('successState').classList.add('show');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        banner.textContent = data.error || 'Something went wrong. Please try again.';
+        banner.classList.add('visible');
+        btn.disabled = false;
+        btn.textContent = 'Register Agency →';
+      }
+    })
+    .catch(() => {
+      banner.textContent = 'Network error. Please try again.';
+      banner.classList.add('visible');
+      btn.disabled = false;
+      btn.textContent = 'Register Agency →';
+    });
+}
+</script>
+</body>
+</html>
