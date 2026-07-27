@@ -927,14 +927,6 @@ document.querySelectorAll("#genderChips .chip").forEach(chip => {
   });
 });
 setupRange("heightMin", "heightMax", "heightMinVal", "heightMaxVal");
-document.getElementById("ageMin").addEventListener("input", () => {
-  if (document.getElementById("ageMin").value.trim()) clearErrorState(document.getElementById("ageMin"));
-  autoSearch();
-});
-document.getElementById("ageMax").addEventListener("input", () => {
-  if (document.getElementById("ageMax").value.trim()) clearErrorState(document.getElementById("ageMax"));
-  autoSearch();
-});
 
 // Don't render on load — wait for Find Matches click
 
