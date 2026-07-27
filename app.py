@@ -422,6 +422,69 @@ def _process_roster_upload(csv_file, zip_file, agency_name):
     return imported
 
 
+def _import_compcards(files, agency_name, owner_user_id=None):
+    """Read each uploaded compcard image (Claude vision), save the image as the
+    model's photo, extract the main face embedding, and upsert the model under
+    the given agency (and account, if provided). Returns a per-file result list."""
+    import tempfile
+    from crawler import read_compcard
+
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+    results = []
+    for f in files:
+        if not f or not f.filename:
+            continue
+        ext = os.path.splitext(f.filename)[1].lower()
+        if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+            results.append({"file": f.filename, "ok": False, "error": "Unsupported file type"})
+            continue
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+            f.save(tmp.name)
+            tmp_path = tmp.name
+        try:
+            data = read_compcard(tmp_path)
+            name = (data.get("english") or "").strip()
+            if not name:
+                results.append({"file": f.filename, "ok": False, "error": "Could not read a name from this card"})
+                continue
+            slug = _slug(name)
+            photo_name = f"{slug}{ext}"
+            photo_path = os.path.join(PHOTO_DIR, photo_name)
+            with open(tmp_path, "rb") as src, open(photo_path, "wb") as dst:
+                dst.write(src.read())
+            photo_url = f"/static/model_photos/{photo_name}"
+            face_embedding = _extract_local_embedding(photo_path)
+            model = {
+                "english": name,
+                "gender": (data.get("gender") or "female").strip().lower(),
+                "height": _normalize_measurement(data.get("height"), "height"),
+                "chest": _normalize_measurement(data.get("chest"), "chest"),
+                "waist": _normalize_measurement(data.get("waist"), "waist"),
+                "hips": _normalize_measurement(data.get("hips"), "hips"),
+                "shoes": _normalize_shoes(data.get("shoes")),
+                "hair_color": (data.get("hair_color") or "black").strip().lower(),
+                "eye_color": (data.get("eye_color") or "brown").strip().lower(),
+                "nationality": "other",
+                "photo_url": photo_url,
+                "workTypes": [], "looks": [],
+            }
+            mid = database.upsert_model(model, agency_name, face_embedding, owner_user_id=owner_user_id)
+            results.append({
+                "file": f.filename, "ok": bool(mid), "name": name,
+                "face": face_embedding is not None,
+                "height": model["height"], "chest": model["chest"],
+                "waist": model["waist"], "hips": model["hips"], "shoes": model["shoes"],
+            })
+        except Exception as e:
+            results.append({"file": f.filename, "ok": False, "error": str(e)})
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+    return results
+
+
 @app.route("/model_template.csv")
 def model_template():
     from flask import Response
@@ -456,15 +519,28 @@ def submit_agency():
     # we import it as the primary source; the crawler then only handles future
     # updates. If absent, we'll crawl their website instead.
     imported = 0
+    # Method A: compcard images (easiest — vision reads each card).
+    compcards = request.files.getlist("compcards")
+    compcards = [c for c in compcards if c and c.filename]
+    if compcards:
+        try:
+            results = _import_compcards(compcards, agency_name)
+            imported += sum(1 for r in results if r.get("ok"))
+        except Exception as e:
+            print(f"[CompcardImport] failed: {e}")
+            return jsonify({"error": f"Agency saved, but compcard import failed: {e}"}), 500
+
+    # Method B: CSV roster (+ optional photo ZIP).
     csv_file = request.files.get("rosterCsv")
     zip_file = request.files.get("photosZip")
     if csv_file and csv_file.filename:
         try:
-            imported = _process_roster_upload(csv_file, zip_file, agency_name)
+            imported += _process_roster_upload(csv_file, zip_file, agency_name)
         except Exception as e:
             print(f"[RosterImport] failed: {e}")
             return jsonify({"error": f"Agency saved, but roster import failed: {e}"}), 500
 
+    # Method C: no files → the crawler imports from their website URL later.
     msg = "Agency registered"
     if imported:
         msg += f" — imported {imported} model(s)"
@@ -575,66 +651,7 @@ def my_models_upload_compcards():
     if not files:
         return jsonify({"error": "No files uploaded"}), 400
 
-    import tempfile
-    from crawler import read_compcard
-
-    os.makedirs(PHOTO_DIR, exist_ok=True)
-    results = []
-    for f in files:
-        if not f or not f.filename:
-            continue
-        ext = os.path.splitext(f.filename)[1].lower()
-        if ext not in (".jpg", ".jpeg", ".png", ".webp"):
-            results.append({"file": f.filename, "ok": False, "error": "Unsupported file type"})
-            continue
-        # Save to a temp file so vision + face extraction can read it.
-        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
-            f.save(tmp.name)
-            tmp_path = tmp.name
-        try:
-            data = read_compcard(tmp_path)
-            name = (data.get("english") or "").strip()
-            if not name:
-                results.append({"file": f.filename, "ok": False, "error": "Could not read a name from this card"})
-                continue
-            slug = _slug(name)
-            # Store the compcard image as the model's photo.
-            photo_name = f"{slug}{ext}"
-            photo_path = os.path.join(PHOTO_DIR, photo_name)
-            with open(tmp_path, "rb") as src, open(photo_path, "wb") as dst:
-                dst.write(src.read())
-            photo_url = f"/static/model_photos/{photo_name}"
-            face_embedding = _extract_local_embedding(photo_path)
-
-            model = {
-                "english": name,
-                "gender": (data.get("gender") or "female").strip().lower(),
-                "height": _normalize_measurement(data.get("height"), "height"),
-                "chest": _normalize_measurement(data.get("chest"), "chest"),
-                "waist": _normalize_measurement(data.get("waist"), "waist"),
-                "hips": _normalize_measurement(data.get("hips"), "hips"),
-                "shoes": _normalize_shoes(data.get("shoes")),
-                "hair_color": (data.get("hair_color") or "black").strip().lower(),
-                "eye_color": (data.get("eye_color") or "brown").strip().lower(),
-                "nationality": "other",
-                "photo_url": photo_url,
-                "workTypes": [], "looks": [],
-            }
-            mid = database.upsert_model(model, user["company"], face_embedding, owner_user_id=user["id"])
-            results.append({
-                "file": f.filename, "ok": bool(mid), "name": name,
-                "face": face_embedding is not None,
-                "height": model["height"], "chest": model["chest"],
-                "waist": model["waist"], "hips": model["hips"], "shoes": model["shoes"],
-            })
-        except Exception as e:
-            results.append({"file": f.filename, "ok": False, "error": str(e)})
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-
+    results = _import_compcards(files, user["company"], owner_user_id=user["id"])
     created = sum(1 for r in results if r.get("ok"))
     return jsonify({"status": "ok", "created": created, "results": results})
 

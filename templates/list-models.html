@@ -215,33 +215,52 @@ footer { border-top: 1px solid var(--gray-200); padding: 2.5rem 4rem; display: f
   <!-- MODEL DATA UPLOAD (OPTIONAL) -->
   <div class="block">
     <p class="block-label">Model Data — Optional</p>
-    <h2 class="block-title">Upload your roster directly</h2>
+    <h2 class="block-title">Add your models — pick one way</h2>
     <p class="block-sub">
-      Prefer to provide your own data instead of letting us read it from your website?
-      Download the template, fill in every model's details, and upload it here along with a
-      ZIP of their photos. If you skip this, we'll import your roster from your website URL
-      instead. Either way, our system keeps everything up to date over time.
+      There are three ways to get your roster in. Use whichever is easiest — you only need one.
+      You can always review and edit everything afterwards.
     </p>
 
-    <div class="field-grid">
+    <!-- METHOD 1 — COMPCARDS -->
+    <div style="border:1px solid #e5e5e5;padding:1.4rem;margin-bottom:1.2rem;">
+      <p style="font-size:0.7rem;letter-spacing:0.18em;text-transform:uppercase;color:#000;margin-bottom:0.3rem;">Method 1 — Compcards <span style="color:#888;">(easiest)</span></p>
+      <p class="upload-hint" style="margin-bottom:0.8rem;">Upload your models' compcard images. We read each card's name and measurements automatically — no typing.</p>
       <div class="field">
-        <label>Model Roster (CSV)</label>
-        <input type="file" id="rosterCsv" accept=".csv">
-        <a href="/model_template.csv" class="template-link" download>↓ Download CSV template (model_template.csv)</a>
-      </div>
-      <div class="field">
-        <label>Model Photos (ZIP)</label>
-        <input type="file" id="photosZip" accept=".zip">
-        <span class="upload-hint">Name each photo to match the model's name, e.g. <span>kim_jae_young.jpg</span></span>
+        <label>Compcard Images (JPG/PNG — select many)</label>
+        <input type="file" id="compcardFiles" accept="image/*" multiple>
       </div>
     </div>
-    <p class="upload-hint" style="margin-top:0.6rem;">
-      Template columns: name, korean_name, birth_year, gender, nationality, height,
-      chest, waist, hips, shoes, hair, eyes, rate_usd.
-      <br>Measurements can be typed in <span>cm or inches</span> — e.g. <span>186</span>,
-      <span>5'9</span>, <span>28in</span>, <span>99/39</span>. Shoes accept mm
-      (<span>280</span>) or EU (<span>42eu</span>). We normalize everything automatically.
-    </p>
+
+    <!-- METHOD 2 — SPREADSHEET + PHOTOS -->
+    <div style="border:1px solid #e5e5e5;padding:1.4rem;margin-bottom:1.2rem;">
+      <p style="font-size:0.7rem;letter-spacing:0.18em;text-transform:uppercase;color:#000;margin-bottom:0.3rem;">Method 2 — Spreadsheet + Photos</p>
+      <p class="upload-hint" style="margin-bottom:0.8rem;">Upload a CSV of measurements <strong>and</strong> a ZIP of photos together (photos matched to rows by name).</p>
+      <div class="field-grid">
+        <div class="field">
+          <label>Model Roster (CSV)</label>
+          <input type="file" id="rosterCsv" accept=".csv">
+          <a href="/model_template.csv" class="template-link" download>↓ Download CSV template (model_template.csv)</a>
+        </div>
+        <div class="field">
+          <label>Model Photos (ZIP)</label>
+          <input type="file" id="photosZip" accept=".zip">
+          <span class="upload-hint">Name each photo to match the model's name, e.g. <span>kim_jae_young.jpg</span></span>
+        </div>
+      </div>
+      <p class="upload-hint" style="margin-top:0.6rem;">
+        Template columns: name, korean_name, birth_year, gender, nationality, height,
+        chest, waist, hips, shoes, hair, eyes, rate_usd.
+        <br>Measurements can be typed in <span>cm or inches</span> — e.g. <span>186</span>,
+        <span>5'9</span>, <span>28in</span>, <span>99/39</span>. Shoes accept mm
+        (<span>280</span>) or EU (<span>42eu</span>). We normalize everything automatically.
+      </p>
+    </div>
+
+    <!-- METHOD 3 — WEBSITE -->
+    <div style="border:1px solid #e5e5e5;padding:1.4rem;">
+      <p style="font-size:0.7rem;letter-spacing:0.18em;text-transform:uppercase;color:#000;margin-bottom:0.3rem;">Method 3 — From your website</p>
+      <p class="upload-hint">Skip the uploads above and we'll import your roster from the website URL you entered. Either way, our system keeps everything up to date over time.</p>
+    </div>
   </div>
 
   <!-- SUBMIT -->
@@ -301,6 +320,10 @@ function submitForm() {
   formData.append('agencyMarket',  market);
   formData.append('notes',         document.getElementById('notes').value.trim());
 
+  const compcardInput = document.getElementById('compcardFiles');
+  if (compcardInput && compcardInput.files.length) {
+    for (const f of compcardInput.files) formData.append('compcards', f);
+  }
   const csvInput = document.getElementById('rosterCsv');
   const zipInput = document.getElementById('photosZip');
   if (csvInput && csvInput.files.length) formData.append('rosterCsv', csvInput.files[0]);
