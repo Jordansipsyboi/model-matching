@@ -426,9 +426,16 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
     </div>
     <div id="bookSuccess" class="book-success" style="display:none">
       <p style="font-size:1.1rem">✓</p>
-      <p>Your email draft has opened.</p>
-      <p>Review it and hit send — the agency and our team will both receive it.</p>
-      <button class="book-cancel" id="bookSuccessClose" type="button" style="margin-top:1.5rem">Close</button>
+      <p style="margin-bottom:1rem">Your inquiry is ready to send.</p>
+      <p style="font-size:0.72rem;color:var(--gray-400);margin-bottom:1rem">Choose how you'd like to send it — the agency and our team will both receive it.</p>
+      <a id="openMailApp" href="#" style="display:block;background:var(--black);color:#fff;padding:0.8rem;text-decoration:none;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.6rem;">Open in Email App</a>
+      <a id="openGmail" href="#" target="_blank" rel="noopener" style="display:block;border:1px solid var(--black);color:var(--black);padding:0.8rem;text-decoration:none;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:1rem;">Open in Gmail (browser)</a>
+      <div style="text-align:left;background:#f7f7f7;padding:0.9rem;font-size:0.72rem;line-height:1.5;color:#333;margin-bottom:1rem;">
+        <div><strong>To:</strong> <span id="draftTo"></span></div>
+        <div style="margin-bottom:0.5rem"><strong>Subject:</strong> <span id="draftSubject"></span></div>
+        <div id="draftBody" style="white-space:pre-wrap"></div>
+      </div>
+      <button class="book-cancel" id="bookSuccessClose" type="button">Close</button>
     </div>
   </div>
 </div>
@@ -958,9 +965,12 @@ I came across ${modelName} through the Model Matching platform and believe they'
 I'd love to connect to discuss availability, rates, and details.`;
   if (notes) body += `\n\nProject notes:\n${notes}`;
   body += `\n\nLooking forward to hearing from you.\n\nBest regards,\n${signoff}`;
-  let url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  if (cc) url += `&cc=${encodeURIComponent(cc)}`;
-  return url;
+  let mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  if (cc) mailtoUrl += `&cc=${encodeURIComponent(cc)}`;
+  // Gmail web compose (for users whose default mail app isn't set).
+  let gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  if (cc) gmailUrl += `&cc=${encodeURIComponent(cc)}`;
+  return { mailtoUrl, gmailUrl, to, cc, subject, body };
 }
 
 document.getElementById("openBookingBtn").addEventListener("click", () => {
@@ -1017,11 +1027,17 @@ document.getElementById("bookSubmitBtn").addEventListener("click", async () => {
       })
     });
     if (res.ok) {
-      // Open the user's email app pre-filled (to agency, CC platform).
-      window.location.href = buildBookingMailto(
+      // Build the pre-filled email and present send options (mail app / Gmail)
+      // plus the full draft, so it works regardless of default-mail setup.
+      const draft = buildBookingMailto(
         m, name, BOOKING_USER.company || "",
         document.getElementById("bookClientNotes").value.trim()
       );
+      document.getElementById("openMailApp").href = draft.mailtoUrl;
+      document.getElementById("openGmail").href = draft.gmailUrl;
+      document.getElementById("draftTo").textContent = draft.to + (draft.cc ? ` (cc: ${draft.cc})` : "");
+      document.getElementById("draftSubject").textContent = draft.subject;
+      document.getElementById("draftBody").textContent = draft.body;
       document.getElementById("bookForm").style.display = "none";
       document.getElementById("bookSuccess").style.display = "";
     } else {
