@@ -480,10 +480,15 @@ def get_models_for_search(filters: dict) -> list:
         conditions.append("m.birth >= %s"); params.append(min_birth)
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    # agency_email prefers the linked owner account's email (the agency that
+    # claimed these models), then falls back to a registered agencies-table row.
     sql = f"""
-        SELECT m.*, a.contact_email as agency_email, a.agency_website as agency_website_url
+        SELECT m.*,
+               COALESCE(u.email, a.contact_email) as agency_email,
+               a.agency_website as agency_website_url
         FROM models m
         LEFT JOIN agencies a ON a.agency_name = m.agency_name
+        LEFT JOIN users u ON u.id = m.owner_user_id
         {where}
     """
     conn = get_connection()
