@@ -8,8 +8,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 import database
 
+from datetime import timedelta
+
 app = Flask(__name__)
 app.secret_key = "mm-secret-2025-xk9"
+# Keep users signed in for 30 days instead of only until the browser closes,
+# so navigating back/forward or reopening a tab doesn't drop the session.
+app.permanent_session_lifetime = timedelta(days=30)
 
 ADMIN_PASSWORD = "eden2009"
 
@@ -470,8 +475,15 @@ def submit_agency():
 VALID_ROLES = {"agency", "production"}
 
 
+def _dashboard_for(user):
+    return url_for("my_models") if user.get("role") == "agency" else url_for("find_models")
+
+
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
+    # Already signed in? Don't show the form (fixes "back button looks logged out").
+    if session.get("user"):
+        return redirect(_dashboard_for(session["user"]))
     if request.method == "POST":
         role         = (request.form.get("role") or "").strip()
         contact_name = (request.form.get("contact_name") or "").strip()
@@ -500,24 +512,28 @@ def signup():
                                    role=role, contact_name=contact_name, company=company,
                                    email=email, phone=phone)
 
+        session.permanent = True
         session["user"] = {"id": user_id, "role": role, "name": contact_name,
                            "company": company, "email": email}
-        return redirect(url_for("my_models") if role == "agency" else url_for("find_models"))
+        return redirect(_dashboard_for(session["user"]))
 
     return render_template("signup.html")
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if session.get("user"):
+        return redirect(_dashboard_for(session["user"]))
     if request.method == "POST":
         email    = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
         user = database.get_user_by_email(email)
         if not user or not check_password_hash(user["password_hash"], password):
             return render_template("login.html", error="Wrong email or password.", email=email)
+        session.permanent = True
         session["user"] = {"id": user["id"], "role": user["role"], "name": user["contact_name"],
                            "company": user["company"], "email": user["email"]}
-        return redirect(url_for("my_models") if user["role"] == "agency" else url_for("find_models"))
+        return redirect(_dashboard_for(session["user"]))
     return render_template("login.html")
 
 
