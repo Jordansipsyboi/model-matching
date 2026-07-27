@@ -160,6 +160,7 @@ def init_db():
     ensure_active_column()
     ensure_face_gender_age_columns()
     ensure_active_column()
+    ensure_owner_column()
 
 
 def seed_db():
@@ -740,6 +741,67 @@ def get_models_by_agency(company):
     finally:
         conn.close()
     return [_row_to_model(r) for r in rows]
+
+
+def ensure_owner_column():
+    """Add owner_user_id to models (links a model to the account that owns it)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT COUNT(*) as cnt FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'models' AND COLUMN_NAME = 'owner_user_id'
+            """, (DB_NAME,))
+            if cur.fetchone()["cnt"] == 0:
+                cur.execute("ALTER TABLE models ADD COLUMN owner_user_id INT DEFAULT NULL")
+                conn.commit()
+    finally:
+        conn.close()
+
+
+def get_models_by_owner(user_id):
+    """Models explicitly owned by an account (exact match on owner_user_id)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM models WHERE owner_user_id = %s ORDER BY english",
+                (user_id,),
+            )
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    return [_row_to_model(r) for r in rows]
+
+
+def set_models_owner(agency_name, user_id):
+    """Claim: assign every model under a given agency_name to an account.
+    Returns how many rows were linked."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE models SET owner_user_id = %s WHERE agency_name = %s",
+                (user_id, agency_name),
+            )
+            conn.commit()
+            return cur.rowcount
+    finally:
+        conn.close()
+
+
+def user_owns_model(user_id, model_id):
+    """True if this account is the explicit owner of the model."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM models WHERE id = %s AND owner_user_id = %s",
+                (model_id, user_id),
+            )
+            return cur.fetchone() is not None
+    finally:
+        conn.close()
 
 
 def get_model_owner(model_id):

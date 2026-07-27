@@ -551,7 +551,12 @@ def my_models():
         return redirect(url_for("login"))
     if user["role"] != "agency":
         return redirect(url_for("find_models"))
-    models = database.get_models_by_agency(user["company"])
+    # Prefer models explicitly claimed by this account (exact owner ID — no
+    # name collisions). Fall back to forgiving name match for agencies that
+    # haven't been claimed yet.
+    models = database.get_models_by_owner(user["id"])
+    if not models:
+        models = database.get_models_by_agency(user["company"])
     return render_template("my_models.html", user=user, models=models)
 
 
@@ -564,13 +569,14 @@ def my_models_update():
     model_id = data.pop("id", "")
     if not model_id:
         return jsonify({"error": "Missing id"}), 400
-    # Ownership check: agencies may only edit models under their own company
-    # name (forgiving match, same rule that populates their dashboard).
-    owner = database.get_model_owner(model_id)
-    if owner is None:
-        return jsonify({"error": "Model not found"}), 404
-    if owner not in database.agency_names_matching(user["company"]):
-        return jsonify({"error": "You can only edit your own agency's models"}), 403
+    # Ownership check: exact owner-ID link first, then forgiving name match
+    # for unclaimed agencies (same rule that populates their dashboard).
+    if not database.user_owns_model(user["id"], model_id):
+        owner = database.get_model_owner(model_id)
+        if owner is None:
+            return jsonify({"error": "Model not found"}), 404
+        if owner not in database.agency_names_matching(user["company"]):
+            return jsonify({"error": "You can only edit your own agency's models"}), 403
 
     int_fields = {"birth", "height", "chest", "waist", "hips", "shoes", "rate"}
     fields = {}
