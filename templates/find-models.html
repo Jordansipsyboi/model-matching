@@ -257,6 +257,13 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
   <a href="/" class="nav-logo">Model Matching</a>
   <div class="nav-right">
     <a href="/" class="nav-back">← Back</a>
+    {% if user %}
+    <span style="font-size:0.72rem;color:#666;margin-right:0.4rem;">Hi, {{ user.name }}</span>
+    {% if user.role == 'agency' %}<a href="/my-models" class="nav-back">My Models</a>{% endif %}
+    <a href="/logout" class="nav-back">Log Out</a>
+    {% else %}
+    <a href="/login" class="nav-back">Log In</a>
+    {% endif %}
     <a href="/list-models" class="btn-primary">List Your Models</a>
   </div>
 </nav>

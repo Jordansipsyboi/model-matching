@@ -12,9 +12,9 @@ from datetime import timedelta
 
 app = Flask(__name__)
 app.secret_key = "mm-secret-2025-xk9"
-# Keep users signed in for 30 days instead of only until the browser closes,
+# Keep users signed in for 3 days instead of only until the browser closes,
 # so navigating back/forward or reopening a tab doesn't drop the session.
-app.permanent_session_lifetime = timedelta(days=30)
+app.permanent_session_lifetime = timedelta(days=3)
 
 ADMIN_PASSWORD = "eden2009"
 
@@ -37,12 +37,12 @@ def get_face_comparator():
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", user=session.get("user"))
 
 
 @app.route("/find-models")
 def find_models():
-    return render_template("find-models.html")
+    return render_template("find-models.html", user=session.get("user"))
 
 
 @app.route("/list-models")
