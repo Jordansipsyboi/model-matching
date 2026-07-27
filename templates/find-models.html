@@ -963,6 +963,8 @@ document.getElementById("openBookingBtn").addEventListener("click", () => {
   const m = MODELS.find(x => x.id === id);
   if (!m) return;
   _bookingModelId = id;
+  // Close the profile modal so the booking form is clearly visible on top.
+  document.getElementById("modalBg").classList.remove("open");
   document.getElementById("bookModelName").textContent =
     `${m.english}${m.agency_name ? " · " + m.agency_name : ""}`;
   document.getElementById("bookForm").style.display = "";
