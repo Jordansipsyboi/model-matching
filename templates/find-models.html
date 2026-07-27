@@ -426,8 +426,8 @@ input[type=range] { width: 100%; accent-color: var(--black); height: 2px; margin
     </div>
     <div id="bookSuccess" class="book-success" style="display:none">
       <p style="font-size:1.1rem">✓</p>
-      <p>Your request has been sent.</p>
-      <p>We'll be in touch shortly.</p>
+      <p>Your email draft has opened.</p>
+      <p>Review it and hit send — the agency and our team will both receive it.</p>
       <button class="book-cancel" id="bookSuccessClose" type="button" style="margin-top:1.5rem">Close</button>
     </div>
   </div>
@@ -928,6 +928,35 @@ document.getElementById("ageMax").addEventListener("input", () => {
 
 // ── Booking Modal ────────────────────────────────────────────────
 let _bookingModelId = null;
+const BOOKING_USER = {
+  name: {{ (user.name if user else "") | tojson }},
+  email: {{ (user.email if user else "") | tojson }},
+  company: {{ (user.company if user else "") | tojson }},
+};
+const PLATFORM_EMAIL = {{ (platform_email or "") | tojson }};
+
+// Build a pre-filled email (to the agency, CC the platform) that opens in the
+// user's own mail app so they consciously hit send (no accidental auto-sends).
+function buildBookingMailto(m, clientName, clientCompany, notes) {
+  const modelName = m?.english || "the model";
+  const agencyEmail = (m && m.agency_email) ? m.agency_email : "";
+  const to = agencyEmail || PLATFORM_EMAIL;
+  // CC the platform only when the To address is the agency (avoid To==CC dupe).
+  const cc = (agencyEmail && PLATFORM_EMAIL) ? PLATFORM_EMAIL : "";
+  const signoff = clientCompany ? `${clientName}, ${clientCompany}` : clientName;
+  const subject = `Casting Inquiry — ${modelName}`;
+  let body =
+`Hello,
+
+I came across ${modelName} through the Model Matching platform and believe they'd be a great fit for a project we're currently preparing.
+
+I'd love to connect to discuss availability, rates, and details.`;
+  if (notes) body += `\n\nProject notes:\n${notes}`;
+  body += `\n\nLooking forward to hearing from you.\n\nBest regards,\n${signoff}`;
+  let url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  if (cc) url += `&cc=${encodeURIComponent(cc)}`;
+  return url;
+}
 
 document.getElementById("openBookingBtn").addEventListener("click", () => {
   const id = document.getElementById("openBookingBtn").dataset.modelId;
@@ -938,8 +967,9 @@ document.getElementById("openBookingBtn").addEventListener("click", () => {
     `${m.english}${m.agency_name ? " · " + m.agency_name : ""}`;
   document.getElementById("bookForm").style.display = "";
   document.getElementById("bookSuccess").style.display = "none";
-  document.getElementById("bookClientName").value = "";
-  document.getElementById("bookClientEmail").value = "";
+  // Prefill from the logged-in account when available.
+  document.getElementById("bookClientName").value = BOOKING_USER.name || "";
+  document.getElementById("bookClientEmail").value = BOOKING_USER.email || "";
   document.getElementById("bookClientPhone").value = "";
   document.getElementById("bookClientNotes").value = "";
   document.getElementById("bookModalBg").classList.add("open");
@@ -980,6 +1010,11 @@ document.getElementById("bookSubmitBtn").addEventListener("click", async () => {
       })
     });
     if (res.ok) {
+      // Open the user's email app pre-filled (to agency, CC platform).
+      window.location.href = buildBookingMailto(
+        m, name, BOOKING_USER.company || "",
+        document.getElementById("bookClientNotes").value.trim()
+      );
       document.getElementById("bookForm").style.display = "none";
       document.getElementById("bookSuccess").style.display = "";
     } else {

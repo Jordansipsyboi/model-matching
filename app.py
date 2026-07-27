@@ -42,7 +42,9 @@ def index():
 
 @app.route("/find-models")
 def find_models():
-    return render_template("find-models.html", user=session.get("user"))
+    cfg = database.load_config()
+    return render_template("find-models.html", user=session.get("user"),
+                           platform_email=cfg.get("notify_email", ""))
 
 
 @app.route("/list-models")
