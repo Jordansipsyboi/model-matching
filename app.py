@@ -704,6 +704,26 @@ def my_models_upload_compcards():
     return jsonify({"status": "ok", "created": created, "results": results})
 
 
+@app.route("/my-models/delete", methods=["POST"])
+def my_models_delete():
+    user = session.get("user")
+    if not user or user["role"] != "agency":
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(force=True) or {}
+    model_id = data.get("id", "")
+    if not model_id:
+        return jsonify({"error": "Missing id"}), 400
+    # Ownership: exact owner link, or forgiving name match for unclaimed rows.
+    if not database.user_owns_model(user["id"], model_id):
+        owner = database.get_model_owner(model_id)
+        if owner is None:
+            return jsonify({"error": "Model not found"}), 404
+        if owner not in database.agency_names_matching(user["company"]):
+            return jsonify({"error": "You can only delete your own agency's models"}), 403
+    database.delete_model(model_id)
+    return jsonify({"status": "ok"})
+
+
 @app.route("/my-models/update", methods=["POST"])
 def my_models_update():
     user = session.get("user")

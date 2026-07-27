@@ -894,6 +894,18 @@ def user_owns_model(user_id, model_id):
         conn.close()
 
 
+def delete_model(model_id):
+    """Delete a single model by id. Returns True if a row was removed."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM models WHERE id = %s", (model_id,))
+            conn.commit()
+            return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def get_model_owner(model_id):
     """Return the agency_name that owns a model, or None if not found."""
     conn = get_connection()

@@ -87,6 +87,7 @@ button.save { background: #000; color: #fff; border: none; padding: 0.6rem 1.4re
       </div>
       <div class="row-actions">
         <button class="save" onclick="saveModel(this)">Save</button>
+        <button type="button" onclick="deleteModel(this)" style="background:#fff;color:#c00;border:1px solid #c00;padding:0.6rem 1.2rem;font-family:inherit;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;">Delete</button>
         <span class="status"></span>
       </div>
     </div>
@@ -124,6 +125,23 @@ document.getElementById("uploadCompcardsBtn").addEventListener("click", async ()
     btn.disabled = false; btn.textContent = "Upload";
   }
 });
+
+async function deleteModel(btn) {
+  const card = btn.closest(".card");
+  const name = card.querySelector(".name").textContent.trim();
+  if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+  const status = card.querySelector(".status");
+  status.textContent = "Deleting…"; status.classList.remove("err");
+  try {
+    const res = await fetch("/my-models/delete", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: card.dataset.id })
+    });
+    const data = await res.json();
+    if (res.ok) { card.remove(); }
+    else { status.textContent = data.error || "Failed"; status.classList.add("err"); }
+  } catch (e) { status.textContent = "Network error"; status.classList.add("err"); }
+}
 
 async function saveModel(btn) {
   const card = btn.closest(".card");
