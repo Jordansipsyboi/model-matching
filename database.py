@@ -305,11 +305,14 @@ def delete_agency(agency_id):
         conn.close()
 
 
-def upsert_model(m: dict, agency_name: str, face_embedding=None):
-    """Insert or update a single model (used by the CSV/ZIP roster import).
-    Mirrors the crawler's save logic so manually-uploaded rosters and crawled
-    rosters live in the same shape. Matched by a slug id from the english name,
-    so re-uploading the same roster updates rather than duplicates."""
+def upsert_model(m: dict, agency_name: str, face_embedding=None, owner_user_id=None):
+    """Insert or update a single model (used by the CSV/ZIP roster import and
+    compcard upload). Mirrors the crawler's save logic so manually-uploaded
+    rosters and crawled rosters live in the same shape. Matched by a slug id
+    from the english name, so re-uploading the same roster updates rather than
+    duplicates. owner_user_id links the model to the agency account that
+    uploaded it (only set when provided, so crawler upserts don't clear it).
+    Returns the model_id on success, or False."""
     import re as _re
     if not m.get("english"):
         return False
@@ -323,8 +326,8 @@ def upsert_model(m: dict, agency_name: str, face_embedding=None):
                     (id, korean, english, birth, height, chest, waist, hips, shoes,
                      hair_length, hair_color, eye_color, gender, nationality,
                      work_types, looks, rate, photo_url, agency_name, profile_url,
-                     face_embedding, active)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1)
+                     face_embedding, owner_user_id, active)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1)
                 ON DUPLICATE KEY UPDATE
                     korean=VALUES(korean), english=VALUES(english), birth=VALUES(birth),
                     height=VALUES(height), chest=VALUES(chest), waist=VALUES(waist),
@@ -334,6 +337,7 @@ def upsert_model(m: dict, agency_name: str, face_embedding=None):
                     work_types=VALUES(work_types), looks=VALUES(looks), rate=VALUES(rate),
                     photo_url=VALUES(photo_url), agency_name=VALUES(agency_name),
                     profile_url=VALUES(profile_url), active=1,
+                    owner_user_id=IF(VALUES(owner_user_id) IS NOT NULL, VALUES(owner_user_id), owner_user_id),
                     face_embedding=IF(VALUES(face_embedding) IS NOT NULL, VALUES(face_embedding), face_embedding)
                 """,
                 (
@@ -358,10 +362,11 @@ def upsert_model(m: dict, agency_name: str, face_embedding=None):
                     agency_name,
                     m.get("profile_url", ""),
                     face_embedding,
+                    owner_user_id,
                 ),
             )
         conn.commit()
-        return True
+        return model_id
     finally:
         conn.close()
 

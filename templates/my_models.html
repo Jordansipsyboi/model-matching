@@ -43,6 +43,15 @@ button.save { background: #000; color: #fff; border: none; padding: 0.6rem 1.4re
 <div class="wrap">
   <p class="intro">These are the models listed under <strong>{{ user.company }}</strong>. You can adjust their details here if anything needs correcting — click a model to expand.</p>
 
+  <!-- Upload compcards -->
+  <div style="background:#fff;border:1px solid #eee;padding:1.4rem;margin-bottom:1.5rem;">
+    <div style="font-size:0.7rem;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:0.5rem;">Add Models — Upload Compcards</div>
+    <p style="font-size:0.8rem;color:#666;margin-bottom:1rem;">Upload one or more compcard images (JPG/PNG). We'll read each card's name and measurements and add the model automatically — then you can review and fix anything below.</p>
+    <input type="file" id="compcardInput" accept="image/*" multiple style="font-size:0.82rem;">
+    <button id="uploadCompcardsBtn" type="button" style="display:inline-block;margin-left:0.8rem;background:#000;color:#fff;border:none;padding:0.55rem 1.2rem;font-family:inherit;font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer;">Upload</button>
+    <div id="uploadStatus" style="font-size:0.8rem;margin-top:1rem;"></div>
+  </div>
+
   {% if not models %}
     <div class="empty">No models found under "{{ user.company }}" yet.<br>Make sure your company name matches how your agency is listed.</div>
   {% endif %}
@@ -81,6 +90,37 @@ button.save { background: #000; color: #fff; border: none; padding: 0.6rem 1.4re
   {% endfor %}
 </div>
 <script>
+document.getElementById("uploadCompcardsBtn").addEventListener("click", async () => {
+  const input = document.getElementById("compcardInput");
+  const status = document.getElementById("uploadStatus");
+  if (!input.files.length) { status.textContent = "Choose at least one compcard image first."; return; }
+
+  const btn = document.getElementById("uploadCompcardsBtn");
+  btn.disabled = true; btn.textContent = "Reading…";
+  status.textContent = `Reading ${input.files.length} card(s)… this can take a moment.`;
+
+  const fd = new FormData();
+  for (const f of input.files) fd.append("compcards", f);
+
+  try {
+    const res = await fetch("/my-models/upload-compcards", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) { status.textContent = data.error || "Upload failed."; return; }
+    const lines = (data.results || []).map(r =>
+      r.ok
+        ? `✓ ${r.name} — H${r.height}/C${r.chest}/W${r.waist}/Hip${r.hips}/Shoe${r.shoes}${r.face ? "" : " (no face detected)"}`
+        : `✗ ${r.file} — ${r.error || "failed"}`
+    );
+    status.innerHTML = `<strong>Added ${data.created} model(s).</strong><br>` + lines.join("<br>") +
+      `<br><br>Refreshing…`;
+    setTimeout(() => location.reload(), 1500);
+  } catch (e) {
+    status.textContent = "Network error. Please try again.";
+  } finally {
+    btn.disabled = false; btn.textContent = "Upload";
+  }
+});
+
 async function saveModel(btn) {
   const card = btn.closest(".card");
   const status = card.querySelector(".status");

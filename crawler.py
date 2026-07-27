@@ -110,6 +110,58 @@ Measurements are often compact like "176 / 84 / 60 / 88" (height/bust/waist/hips
 Return ONLY the JSON object. No explanation."""
 
 
+COMPCARD_PROMPT = """This is a modeling agency compcard (a model's promo card).
+Extract the model's data and return ONLY a JSON object with these fields:
+- english: the model's name printed on the card (string; usually large text)
+- gender: "male" or "female" — infer from appearance and any labels
+- height: height in cm as integer
+- chest: chest/bust in cm as integer
+- waist: waist in cm as integer
+- hips: hips in cm as integer
+- shoes: shoe size in mm as integer
+- hair_color: e.g. "black", "brown", "blonde"
+- eye_color: e.g. "brown", "black", "blue"
+- agency_email: the contact email printed on the card, else ""
+
+Measurements are usually a labeled line like
+"HEIGHT 176  CHEST 31  WAIST 26  HIPS 35  SHOES 270  HAIR BLACK  EYES BLACK".
+IMPORTANT units: height is in cm. Shoes are in mm (e.g. 270). But chest/waist/hips
+are often in INCHES when they are small two-digit numbers (like 31/26/35) — in that
+case convert to cm (inches * 2.54, so 31 -> 79). If chest/waist/hips are already
+large (like 88/62/90) they are already cm — keep them. Use 0 for anything not shown.
+
+Return ONLY the JSON object, no explanation."""
+
+
+def read_compcard(image_path: str) -> dict:
+    """Read a compcard IMAGE file (local path) with Claude vision and return the
+    model's name + measurements + agency email as a dict. {} on failure."""
+    try:
+        import base64
+        with open(image_path, "rb") as f:
+            img_bytes = f.read()
+        ext = os.path.splitext(image_path)[1].lower()
+        media_type = {".png": "image/png", ".webp": "image/webp", ".gif": "image/gif"}.get(ext, "image/jpeg")
+        b64 = base64.standard_b64encode(img_bytes).decode("utf-8")
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=600,
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}},
+                {"type": "text", "text": COMPCARD_PROMPT},
+            ]}],
+        )
+        raw = message.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        return json.loads(raw)
+    except Exception as e:
+        print(f"    Compcard read failed: {e}")
+        return {}
+
+
 def extract_measurements_from_image(photo_url: str) -> dict:
     """Vision fallback: download the compcard image and let Claude read the
     measurements printed on it. Used when the page text has no usable numbers

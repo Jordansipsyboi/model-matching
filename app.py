@@ -562,6 +562,83 @@ def my_models():
     return render_template("my_models.html", user=user, models=models)
 
 
+@app.route("/my-models/upload-compcards", methods=["POST"])
+def my_models_upload_compcards():
+    """Agency uploads compcard images; each is read with Claude vision (name +
+    measurements + agency email), the main face is embedded, and a model is
+    created under this account. Agencies then review/fix in My Models."""
+    user = session.get("user")
+    if not user or user["role"] != "agency":
+        return jsonify({"error": "Unauthorized"}), 401
+
+    files = request.files.getlist("compcards")
+    if not files:
+        return jsonify({"error": "No files uploaded"}), 400
+
+    import tempfile
+    from crawler import read_compcard
+
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+    results = []
+    for f in files:
+        if not f or not f.filename:
+            continue
+        ext = os.path.splitext(f.filename)[1].lower()
+        if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+            results.append({"file": f.filename, "ok": False, "error": "Unsupported file type"})
+            continue
+        # Save to a temp file so vision + face extraction can read it.
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+            f.save(tmp.name)
+            tmp_path = tmp.name
+        try:
+            data = read_compcard(tmp_path)
+            name = (data.get("english") or "").strip()
+            if not name:
+                results.append({"file": f.filename, "ok": False, "error": "Could not read a name from this card"})
+                continue
+            slug = _slug(name)
+            # Store the compcard image as the model's photo.
+            photo_name = f"{slug}{ext}"
+            photo_path = os.path.join(PHOTO_DIR, photo_name)
+            with open(tmp_path, "rb") as src, open(photo_path, "wb") as dst:
+                dst.write(src.read())
+            photo_url = f"/static/model_photos/{photo_name}"
+            face_embedding = _extract_local_embedding(photo_path)
+
+            model = {
+                "english": name,
+                "gender": (data.get("gender") or "female").strip().lower(),
+                "height": _normalize_measurement(data.get("height"), "height"),
+                "chest": _normalize_measurement(data.get("chest"), "chest"),
+                "waist": _normalize_measurement(data.get("waist"), "waist"),
+                "hips": _normalize_measurement(data.get("hips"), "hips"),
+                "shoes": _normalize_shoes(data.get("shoes")),
+                "hair_color": (data.get("hair_color") or "black").strip().lower(),
+                "eye_color": (data.get("eye_color") or "brown").strip().lower(),
+                "nationality": "other",
+                "photo_url": photo_url,
+                "workTypes": [], "looks": [],
+            }
+            mid = database.upsert_model(model, user["company"], face_embedding, owner_user_id=user["id"])
+            results.append({
+                "file": f.filename, "ok": bool(mid), "name": name,
+                "face": face_embedding is not None,
+                "height": model["height"], "chest": model["chest"],
+                "waist": model["waist"], "hips": model["hips"], "shoes": model["shoes"],
+            })
+        except Exception as e:
+            results.append({"file": f.filename, "ok": False, "error": str(e)})
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    created = sum(1 for r in results if r.get("ok"))
+    return jsonify({"status": "ok", "created": created, "results": results})
+
+
 @app.route("/my-models/update", methods=["POST"])
 def my_models_update():
     user = session.get("user")
